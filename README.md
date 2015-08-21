@@ -7,3 +7,7 @@
 - From Gnome extensions site
 
  https://extensions.gnome.org/extension/975/keyboard-modifiers-status/
+
+- Manually
+
+ Extract it into a subfolder in `~/.local/share/gnome-shell/extensions/`
