@@ -10,4 +10,4 @@
 
 - Manually
 
- Extract it into a subfolder in `~/.local/share/gnome-shell/extensions/`
+ Extract it into a subfolder `keyboard_modifiers_status@sneetsher` in `~/.local/share/gnome-shell/extensions/`
