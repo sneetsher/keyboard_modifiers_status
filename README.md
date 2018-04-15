@@ -11,3 +11,9 @@
 - Manually
 
     Extract it into a subfolder `keyboard_modifiers_status@sneetsher` in `~/.local/share/gnome-shell/extensions/`
+    
+## Debug
+
+Beside LookingGlass tools, this is a simple commandline to fetch and display the modifiers state. To run:
+
+    gjs ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/test_gjs_gdk_modifiers.js
