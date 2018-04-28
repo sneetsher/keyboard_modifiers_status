@@ -1,4 +1,4 @@
-# Gnoom-Shell Keyboard Modifiers Status
+# Gnome-Shell Keyboard Modifiers Status
 
  Gnome-Shell extension that shows keyboard modifiers status. It's much useful when sticky keys are active.
  
@@ -10,7 +10,8 @@
 
 - Manually
 
-    Extract it into a subfolder `keyboard_modifiers_status@sneetsher` in `~/.local/share/gnome-shell/extensions/`
+    1. Extract it into a subfolder `keyboard_modifiers_status@sneetsher` in `~/.local/share/gnome-shell/extensions/`
+    2. Restart gnome-shell (or logout/login), Enable it in Gnome Tweak, Then restart gnome-shell again.
     
 ## Debug
 
