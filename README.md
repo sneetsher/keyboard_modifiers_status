@@ -18,3 +18,9 @@
 Beside LookingGlass tools, this is a simple commandline to fetch and display the modifiers state. To run:
 
     gjs ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/test_gjs_gdk_modifiers.js
+
+## Package
+
+Quick command to prepare the package to be uploaded to extensions.gnome.org
+
+    zip -j keyboard_modifiers_status@sneetsher.zip ./*
