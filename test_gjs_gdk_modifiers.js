@@ -1,31 +1,34 @@
 #!/usr/bin/gjs
 
-//This script is only to test on non supported gnome shell version
-//or to help in debuging
+// This script is only to test on non supported gnome shell version
+// or to help in debuging
 
 const GLib = imports.gi.GLib;
 const Gtk = imports.gi.Gtk;
 const Gdk = imports.gi.Gdk;
-const Lang = imports.lang;
-const mainloop = imports.mainloop;
+//const Lang = imports.lang;
+//const mainloop = imports.mainloop;
 
-//OK
-Gtk.init(null, null);
-//NO
+// OK
+Gtk.init(null);
+// NO
 //Gdk.init(ARGV);
 
-print("Hello World!");
+print("GJS testing script!");
 
 let _keymap = Gdk.Keymap.get_default();
-let _state = _keymap.get_modifier_state ();
+print(_keymap)
+let _state = _keymap.get_modifier_state();
+print("init_state: ",_state,_keymap.get_caps_lock_state(),_keymap.get_num_lock_state(),_keymap.get_scroll_lock_state())
+
 
 GLib.timeout_add_seconds(0, 1, function () {
-    _state = _keymap.get_modifier_state ();
+    _state = _keymap.get_modifier_state();
     print(""+_state);
     return true;
     });
 
-//OK
-//Gtk.main();
-//OK
-mainloop.run();
+// OK
+Gtk.main();
+// OK
+//mainloop.run();
