@@ -15,6 +15,13 @@ install:
 
 test: test-js
 
+clean: dist-clean
+	rm test_c_gdk_modifiers
+	rm test_c_gtk_modifiers
+
+dist-clean:
+	rm keyboard_modifiers_status@sneetsher.zip
+
 dist:
 	zip -j keyboard_modifiers_status@sneetsher.zip ./*
 
