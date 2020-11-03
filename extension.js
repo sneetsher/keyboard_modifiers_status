@@ -23,8 +23,8 @@ function init() {
     button = new St.Bin({ style_class: 'panel-button',
                           reactive: false,
                           can_focus: false,
-                          x_fill: true,
-                          y_fill: false,
+                          x_expand: true,
+                          y_expand: false,
                           track_hover: false });
     
     label = new St.Label({ style_class: "state-label", text: "" });
