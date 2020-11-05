@@ -5,7 +5,7 @@
 	],
 	"uuid": "keyboard_modifiers_status@sneetsher",
 	"name": "Keyboard Modifiers Status",
-	"description": "Shows keyboard modifiers status. It's much useful when sticky keys are active.",
+	"description": "Shows the keyboard modifiers status. It's much useful when accessibility feature - sticky keys is active.",
 	"original-author": "sneetsher@localhost",
 	"url": "https://github.com/sneetsher/Keyboard-Modifiers-Status"
 }
