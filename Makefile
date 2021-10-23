@@ -42,3 +42,7 @@ test-c:
 
 test-c-gtk:
 	./test_c_gtk_modifiers
+
+
+debug:
+	journalctl -f -o cat /usr/bin/gnome-shell
