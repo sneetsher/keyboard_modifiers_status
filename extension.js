@@ -110,7 +110,11 @@ function init() {
     
     //log(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
     
-    seat = Clutter.get_default_backend().get_default_seat();
+    try {
+        seat = Clutter.get_default_backend().get_default_seat();
+    } catch (e) {
+        seat = Clutter.DeviceManager.get_default();
+    };
 
     log(`${tag} init() ... out`);
 }
@@ -119,7 +123,9 @@ function init() {
 function enable() {
     log(`${tag} enable() ... in`);
     
-    mods_update_id = seat.connect("kbd-a11y-mods-state-changed", _a11y_mods_update);
+    if (seat) {
+        mods_update_id = seat.connect("kbd-a11y-mods-state-changed", _a11y_mods_update);
+    };
     
     Main.panel._rightBox.insert_child_at_index(button, 0);
     timeout_id = Mainloop.timeout_add(200, _update );
@@ -134,7 +140,9 @@ function disable() {
     Main.panel._rightBox.remove_child(button);
     Mainloop.source_remove(timeout_id);
     
-    seat.disconnect(mods_update_id);
+    if (seat) {
+        seat.disconnect(mods_update_id);
+    };
     
     log(`${tag} disable() ... out`);
 }
