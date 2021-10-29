@@ -4,6 +4,7 @@
  
  It is useful when accessibility feature - sticky keys is active.
  
+
 ## Install
 
 - From Gnome extensions site
@@ -22,8 +23,14 @@
     
             gnome-extensions enable keyboard_modifiers_status@sneetsher
 
+
 ## Developer hints
 
  Check [HACKING.md](HACKING.md) file.
     
-    
+
+## Extras
+
+- Enable an extension for all users (machine-wide)
+
+    See https://people.gnome.org/~pmkovar/system-admin-guide/extensions-enable.html  
