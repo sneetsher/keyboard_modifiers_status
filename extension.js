@@ -1,3 +1,21 @@
+/*
+    Keyboard Modifiers Status for gnome-shell
+    Copyright (C) 2015  Abdellah Chelli
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 //
 const St = imports.gi.St;
 const Clutter = imports.gi.Clutter;
@@ -9,6 +27,9 @@ const Mainloop = imports.mainloop;
 
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
+
+//
+const dbg = false;
 
 //
 const tag = "KMS-Ext:";
@@ -28,16 +49,10 @@ let latch, lock;
 let x, y, m;
 let timeout_id, mods_update_id;
 
-//
-state = 0;
-state_prev = 0;
-latch = 0;
-lock = 0;
-
 
 //
 function _update() {
-    //log(`${tag} _update() ... in`);
+    //if(dbg) log(`${tag} _update() ... in`);
     //TODO: search for documentation about global
     //Note: modifiers state from get_pointer is the base not the effective
     // On latch active, it is on too. but on lock active, it is off
@@ -48,7 +63,7 @@ function _update() {
         state = m;
     };
     if ((state != prev_state) || latch || lock) {
-        //log(`${tag} State changed... ${prev_state}, ${state}`);
+        //if(dbg) log(`${tag} State changed... ${prev_state}, ${state}`);
         indicator = icon + opening + " ";
         //TODO: don't relay on internal order
         //      use standard pre-defined constant masks
@@ -73,13 +88,13 @@ function _update() {
         label.text = indicator;
         prev_state = state;
     }
-    //log(`${tag} init() ... out`);
+    //if(dbg) log(`${tag} init() ... out`);
     return true;
 }
 
 
 function _a11y_mods_update(o, latch_new, lock_new) {
-    //log(`${tag} _a11y_mods_update() ... in`);
+    //if(dbg) log(`${tag} _a11y_mods_update() ... in`);
     //TODO: search what's the 1st parameter
     if (typeof latch_new !== 'undefined') {
         latch = latch_new;
@@ -87,8 +102,8 @@ function _a11y_mods_update(o, latch_new, lock_new) {
     if (typeof lock_new !== 'undefined') {
         lock = lock_new;
     };
-    //log(`${tag} latch: ${latch}, lock: ${lock});
-    //log(`${tag} _a11y_mods_update() ... out`);
+    //if(dbg) log(`${tag} latch: ${latch}, lock: ${lock});
+    //if(dbg) log(`${tag} _a11y_mods_update() ... out`);
     return true;
 }
 
@@ -96,7 +111,21 @@ function _a11y_mods_update(o, latch_new, lock_new) {
 // init, enable, disable
 
 function init() {
-    log(`${tag} init() ... in - ${Me.metadata.name}`);
+    if(dbg) log(`${tag} init() ... in - ${Me.metadata.name}`);
+    if(dbg) log(`${tag} init() ... out`);
+}
+
+
+function enable() {
+    if(dbg) log(`${tag} enable() ... in`);
+    
+    //
+    state = 0;
+    state_prev = 0;
+    latch = 0;
+    lock = 0;
+    timeout_id = null;
+    mods_update_id = null;
     
     //
     button = new St.Bin({ style_class: 'panel-button',
@@ -108,20 +137,13 @@ function init() {
     label = new St.Label({ style_class: "state-label", text: "" });
     button.set_child(label);
     
-    //log(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
+    //if(dbg) log(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
     
     try {
         seat = Clutter.get_default_backend().get_default_seat();
     } catch (e) {
         seat = Clutter.DeviceManager.get_default();
     };
-
-    log(`${tag} init() ... out`);
-}
-
-
-function enable() {
-    log(`${tag} enable() ... in`);
     
     if (seat) {
         mods_update_id = seat.connect("kbd-a11y-mods-state-changed", _a11y_mods_update);
@@ -130,19 +152,25 @@ function enable() {
     Main.panel._rightBox.insert_child_at_index(button, 0);
     timeout_id = Mainloop.timeout_add(200, _update );
     
-    log(`${tag} enable() ... out`);
+    if(dbg) log(`${tag} enable() ... out`);
 }
 
 
 function disable() {
-    log(`${tag} disable() ... in`);
+    if(dbg) log(`${tag} disable() ... in`);
     
     Main.panel._rightBox.remove_child(button);
+    
     Mainloop.source_remove(timeout_id);
     
-    if (seat) {
+    if (seat && mods_update_id) {
         seat.disconnect(mods_update_id);
     };
     
-    log(`${tag} disable() ... out`);
+    button.destroy_all_children();
+    button.destroy();
+    button = null;
+    label = null;
+    
+    if(dbg) log(`${tag} disable() ... out`);
 }
