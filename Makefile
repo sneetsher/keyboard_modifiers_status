@@ -21,12 +21,11 @@ clean: dist-clean
 	rm lab/test_c_gtk_modifiers
 
 dist-clean:
-	rm dist/keyboard_modifiers_status@sneetsher.zip
+	rm package/keyboard_modifiers_status@sneetsher.zip
 
 dist:
-	mkdir dist
-	zip -x /lab/* -j dist/keyboard_modifiers_status@sneetsher.zip ./*
-
+	mkdir -p package
+	zip -j package/keyboard_modifiers_status@sneetsher.zip ./*.js* ./*.css
 
 test-js:
 	gjs ./lab/test_gjs_gdk_modifiers.js

@@ -13,7 +13,7 @@ This is a very small and simple extension. It can be easily modified or used as 
 
 Quick command to prepare the package to be uploaded to extensions.gnome.org, manualy install or distribution
 
-    zip -x /lab/* -j keyboard_modifiers_status@sneetsher.zip ./*
+See `make dist`
 
 
 ## Notes
