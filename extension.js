@@ -36,9 +36,9 @@ const tag = "KMS-Ext:";
 const mod_sym = "⇧⇬⋀⌥①◆⌘⎇";
 const latch_sym = "'";
 const lock_sym = "◦";
-const icon = "⌨ ";
-const opening = "_";
-const closing = "_";
+const icon = ""; //"⌨ ";
+const opening = ""; //"_";
+const closing = ""; //"_";
 
 //
 let button, label;
