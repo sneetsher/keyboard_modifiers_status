@@ -45,7 +45,7 @@ let button, label;
 let indicator;
 let state, prev_state;
 let seat;
-let latch, lock;
+let latch, prev_latch, lock, prev_lock;
 let x, y, m;
 let timeout_id, mods_update_id;
 
@@ -62,7 +62,7 @@ function _update() {
     if (typeof m !== 'undefined') {
         state = m;
     };
-    if ((state != prev_state) || latch || lock) {
+    if ((state != prev_state) || latch != prev_latch || lock != prev_lock) {
         //if(dbg) log(`${tag} State changed... ${prev_state}, ${state}`);
         indicator = icon + opening + " ";
         //TODO: don't relay on internal order
@@ -87,6 +87,8 @@ function _update() {
         indicator += " " + closing;
         label.text = indicator;
         prev_state = state;
+	prev_latch = latch;
+	prev_lock = lock;
     }
     //if(dbg) log(`${tag} init() ... out`);
     return true;
@@ -123,7 +125,9 @@ function enable() {
     state = 0;
     state_prev = 0;
     latch = 0;
+    prev_latch = 0;
     lock = 0;
+    prev_lock = 0;
     timeout_id = null;
     mods_update_id = null;
     
