@@ -33,4 +33,4 @@
 
 - Enable an extension for all users (machine-wide)
 
-    See https://people.gnome.org/~pmkovar/system-admin-guide/extensions-enable.html  
+    See https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en
