@@ -17,16 +17,14 @@
 */
 
 //
-const St = imports.gi.St;
-const Clutter = imports.gi.Clutter;
-//const Meta = imports.gi.Meta;
+import St from 'gi://St';
+import Clutter from 'gi://Clutter';
 
 //
-const Main = imports.ui.main;
-const Mainloop = imports.mainloop;
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import GLib from 'gi://GLib';
 
-const ExtensionUtils = imports.misc.extensionUtils;
-const Me = ExtensionUtils.getCurrentExtension();
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 //
 const dbg = false;
@@ -112,69 +110,66 @@ function _a11y_mods_update(o, latch_new, lock_new) {
 // Gnome-shell extension interface
 // init, enable, disable
 
-function init() {
-    if(dbg) log(`${tag} init() ... in - ${Me.metadata.name}`);
-    if(dbg) log(`${tag} init() ... out`);
-}
+export default class MyExtension extends Extension {
+
+    enable() {
+        if(dbg) log(`${tag} enable() ... in`);
+
+        //
+        state = 0;
+        prev_state = 0;
+        latch = 0;
+        prev_latch = 0;
+        lock = 0;
+        prev_lock = 0;
+        timeout_id = 0;
+        mods_update_id = null;
+
+        //
+        button = new St.Bin({ style_class: 'panel-button',
+            reactive: false,
+            can_focus: false,
+            x_expand: true,
+            y_expand: false,
+            track_hover: false });
+        label = new St.Label({ style_class: "state-label", text: "" });
+        button.set_child(label);
+
+        //if(dbg) log(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
+
+        try {
+            seat = Clutter.get_default_backend().get_default_seat();
+        } catch (e) {
+            seat = Clutter.DeviceManager.get_default();
+        };
+
+        if (seat) {
+            mods_update_id = seat.connect("kbd-a11y-mods-state-changed", _a11y_mods_update);
+        };
+
+        Main.panel._rightBox.insert_child_at_index(button, 0);
+        timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, _update);
+
+        if(dbg) log(`${tag} enable() ... out`);
+    }
 
 
-function enable() {
-    if(dbg) log(`${tag} enable() ... in`);
-    
-    //
-    state = 0;
-    state_prev = 0;
-    latch = 0;
-    prev_latch = 0;
-    lock = 0;
-    prev_lock = 0;
-    timeout_id = null;
-    mods_update_id = null;
-    
-    //
-    button = new St.Bin({ style_class: 'panel-button',
-                          reactive: false,
-                          can_focus: false,
-                          x_expand: true,
-                          y_expand: false,
-                          track_hover: false });
-    label = new St.Label({ style_class: "state-label", text: "" });
-    button.set_child(label);
-    
-    //if(dbg) log(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
-    
-    try {
-        seat = Clutter.get_default_backend().get_default_seat();
-    } catch (e) {
-        seat = Clutter.DeviceManager.get_default();
-    };
-    
-    if (seat) {
-        mods_update_id = seat.connect("kbd-a11y-mods-state-changed", _a11y_mods_update);
-    };
-    
-    Main.panel._rightBox.insert_child_at_index(button, 0);
-    timeout_id = Mainloop.timeout_add(200, _update );
-    
-    if(dbg) log(`${tag} enable() ... out`);
-}
+    disable() {
+        if(dbg) log(`${tag} disable() ... in`);
 
+        Main.panel._rightBox.remove_child(button);
 
-function disable() {
-    if(dbg) log(`${tag} disable() ... in`);
-    
-    Main.panel._rightBox.remove_child(button);
-    
-    Mainloop.source_remove(timeout_id);
-    
-    if (seat && mods_update_id) {
-        seat.disconnect(mods_update_id);
-    };
-    
-    button.destroy_all_children();
-    button.destroy();
-    button = null;
-    label = null;
-    
-    if(dbg) log(`${tag} disable() ... out`);
+        GLib.source_remove(timeout_id);
+
+        if (seat && mods_update_id) {
+            seat.disconnect(mods_update_id);
+        };
+
+        button.destroy_all_children();
+        button.destroy();
+        button = null;
+        label = null;
+
+        if(dbg) log(`${tag} disable() ... out`);
+    }
 }
