@@ -1,16 +1,6 @@
 {
 	"shell-version": [
-		"3.28",
-		"3.30",
-		"3.32",
-		"3.34",
-		"3.36",
-		"3.38",
-		"40",
-		"41",
-		"42",
-		"43",
-		"44"
+		"45"
 	],
 	"uuid": "keyboard_modifiers_status@sneetsher",
 	"name": "Keyboard Modifiers Status",
