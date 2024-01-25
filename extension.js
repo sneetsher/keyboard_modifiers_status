@@ -110,7 +110,7 @@ function _a11y_mods_update(o, latch_new, lock_new) {
 // Gnome-shell extension interface
 // init, enable, disable
 
-export default class MyExtension extends Extension {
+export default class KMS extends Extension {
 
     enable() {
         if(dbg) log(`${tag} enable() ... in`);
@@ -123,7 +123,11 @@ export default class MyExtension extends Extension {
         lock = 0;
         prev_lock = 0;
         timeout_id = 0;
+
+        seat = null;
         mods_update_id = null;
+        button = null;
+        label = null;
 
         //
         button = new St.Bin({ style_class: 'panel-button',
@@ -169,6 +173,9 @@ export default class MyExtension extends Extension {
         button.destroy();
         button = null;
         label = null;
+        mods_update_id = null;
+        seat = null;
+
 
         if(dbg) log(`${tag} disable() ... out`);
     }
