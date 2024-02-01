@@ -29,7 +29,7 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 //
 const dbg = false;
 
-//
+//TODO: convert into preferrence.
 const tag = "KMS-Ext:";
 const mod_sym = "⇧⇬⋀⌥①◆⌘⎇";
 const latch_sym = "'";
@@ -38,96 +38,53 @@ const icon = ""; //"⌨ ";
 const opening = ""; //"_";
 const closing = ""; //"_";
 
-//
-let button, label;
-let indicator;
-let state, prev_state;
+//TODO: eliminate global variables
 let seat;
-let latch, prev_latch, lock, prev_lock;
-let x, y, m;
-let timeout_id, mods_update_id;
+let button,
+    label;
 
+let state,
+    prev_state,
+    latch,
+    prev_latch,
+    lock,
+    prev_lock;
 
-//
-function _update() {
-    //if(dbg) log(`${tag} _update() ... in`);
-    //TODO: search for documentation about global
-    //Note: modifiers state from get_pointer is the base not the effective
-    // On latch active, it is on too. but on lock active, it is off
-    // Not the case, using Gdk.Keymap.get_default().get_modifier_state() which
-    // is the effective
-    [x, y, m] = global.get_pointer();
-    if (typeof m !== 'undefined') {
-        state = m;
-    };
-    if ((state != prev_state) || latch != prev_latch || lock != prev_lock) {
-        //if(dbg) log(`${tag} State changed... ${prev_state}, ${state}`);
-        indicator = icon + opening + " ";
-        //TODO: don't relay on internal order
-        //      use standard pre-defined constant masks
-        for (var i=0; i<8; i++ ) {
-            if ((state & 1<<i) || (lock & 1<<i)) {
-                indicator += mod_sym[i];
-            } else {
-                //indicator += "";
-            };
-            if (latch & 1<<i) {
-                indicator += latch_sym + " ";
-            } else {
-                //indicator += "";
-            };
-            if (lock & 1<<i) {
-                indicator += lock_sym + " ";
-            } else {
-                //indicator += "";
-            };
-        }
-        indicator += " " + closing;
-        label.text = indicator;
-        prev_state = state;
-	prev_latch = latch;
-	prev_lock = lock;
-    }
-    //if(dbg) log(`${tag} init() ... out`);
-    return true;
-}
+let indicator;
 
-
-function _a11y_mods_update(o, latch_new, lock_new) {
-    //if(dbg) log(`${tag} _a11y_mods_update() ... in`);
-    //TODO: search what's the 1st parameter
-    if (typeof latch_new !== 'undefined') {
-        latch = latch_new;
-    };
-    if (typeof lock_new !== 'undefined') {
-        lock = lock_new;
-    };
-    //if(dbg) log(`${tag} latch: ${latch}, lock: ${lock});
-    //if(dbg) log(`${tag} _a11y_mods_update() ... out`);
-    return true;
-}
+let timeout_id,
+    mods_update_id;
 
 // Gnome-shell extension interface
 // init, enable, disable
 
 export default class KMS extends Extension {
 
+
+    constructor(metadata) {
+        super(metadata);
+
+        console.debug(`${tag} constructor() ... done ${this.metadata.name}`);
+    }
+
     enable() {
-        if(dbg) log(`${tag} enable() ... in`);
+        console.debug(`${tag} enable() ... in`);
 
         //
+
+        seat = null;
+        button = null;
+        label = null;
+
         state = 0;
         prev_state = 0;
         latch = 0;
         prev_latch = 0;
         lock = 0;
         prev_lock = 0;
-        timeout_id = 0;
 
-        seat = null;
+        timeout_id = null;
         mods_update_id = null;
-        button = null;
-        label = null;
 
         //
         button = new St.Bin({ style_class: 'panel-button',
@@ -139,7 +96,7 @@ export default class KMS extends Extension {
         label = new St.Label({ style_class: "state-label", text: "" });
         button.set_child(label);
 
-        //if(dbg) log(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
+        //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
         try {
             seat = Clutter.get_default_backend().get_default_seat();
@@ -148,18 +105,18 @@ export default class KMS extends Extension {
         };
 
         if (seat) {
-            mods_update_id = seat.connect("kbd-a11y-mods-state-changed", _a11y_mods_update);
+            mods_update_id = seat.connect("kbd-a11y-mods-state-changed", this._a11y_mods_update);
         };
 
         Main.panel._rightBox.insert_child_at_index(button, 0);
-        timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, _update);
+        timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, this._update);
 
-        if(dbg) log(`${tag} enable() ... out`);
+        console.debug(`${tag} enable() ... out`);
     }
 
 
     disable() {
-        if(dbg) log(`${tag} disable() ... in`);
+        console.debug(`${tag} disable() ... in`);
 
         Main.panel._rightBox.remove_child(button);
 
@@ -171,12 +128,82 @@ export default class KMS extends Extension {
 
         button.destroy_all_children();
         button.destroy();
+
+        seat = null;
         button = null;
         label = null;
+
+        timeout_id = null;
         mods_update_id = null;
-        seat = null;
 
-
-        if(dbg) log(`${tag} disable() ... out`);
+        console.debug(`${tag} disable() ... out`);
     }
+
+    //
+    _update() {
+        console.debug(`${tag} _update() ... in`);
+        //TODO: search for documentation about global
+        //Note: modifiers state from get_pointer is the base not the effective
+        // On latch active, it is on too. but on lock active, it is off
+        // Not the case, using Gdk.Keymap.get_default().get_modifier_state() which
+        // is the effective
+
+        const [x, y, m] = global.get_pointer();
+        
+        if (typeof m !== 'undefined') {
+            state = m;
+        };
+
+        if ((state != prev_state) || latch != prev_latch || lock != prev_lock) {
+            console.debug(`${tag} State changed... ${prev_state}, ${state}`);
+            indicator = icon + opening + " ";
+            //TODO: don't relay on internal order
+            //      use standard pre-defined constant masks
+            for (var i=0; i<8; i++ ) {
+                if ((state & 1<<i) || (lock & 1<<i)) {
+                    indicator += mod_sym[i];
+                } else {
+                    //indicator += "";
+                };
+                if (latch & 1<<i) {
+                    indicator += latch_sym + " ";
+                } else {
+                    //indicator += "";
+                };
+                if (lock & 1<<i) {
+                    indicator += lock_sym + " ";
+                } else {
+                    //indicator += "";
+                };
+            }
+            indicator += " " + closing;
+
+            label.text = indicator;
+
+            prev_state = state;
+            prev_latch = latch;
+            prev_lock = lock;
+        }
+
+        console.debug(`${tag} _update() ... out`);
+        //return true;
+        return GLib.SOURCE_CONTINUE;
+    }
+
+
+    _a11y_mods_update(o, latch_new, lock_new) {
+        console.debug(`${tag} _a11y_mods_update() ... in`);
+        //TODO: search what's the 1st parameter
+        if (typeof latch_new !== 'undefined') {
+            latch = latch_new;
+        };
+        if (typeof lock_new !== 'undefined') {
+            lock = lock_new;
+        };
+        console.debug(`${tag} latch: ${latch}, lock: ${lock}`);
+        console.debug(`${tag} _a11y_mods_update() ... out`);
+        //return true;
+        return GLib.SOURCE_CONTINUE;
+    }
+
 }
