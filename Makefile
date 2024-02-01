@@ -23,7 +23,7 @@ clean: dist-clean
 dist-clean:
 	rm package/keyboard_modifiers_status@sneetsher.zip
 
-dist:
+dist: dist-clean
 	mkdir -p package
 	zip -j package/keyboard_modifiers_status@sneetsher.zip ./*.js* ./*.css
 
