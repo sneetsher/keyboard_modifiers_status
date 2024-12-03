@@ -21,7 +21,7 @@ clean: dist-clean
 	rm lab/test_c_gtk_modifiers
 
 dist-clean:
-	rm package/keyboard_modifiers_status@sneetsher.zip
+	rm package/keyboard_modifiers_status@sneetsher.zip || echo skipped
 
 dist: dist-clean
 	mkdir -p package
