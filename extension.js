@@ -29,14 +29,20 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 //
 const dbg = false;
 
-//TODO: convert into preferrence.
-const tag = "KMS-Ext:";
+//TODO: convert const into preferrence.
+const tag = "KMS-Ext:"; //used for log
+
+// display test symbols
 const mod_sym = "⇧⇬⋀⌥①◆⌘⎇";
 const latch_sym = "'";
 const lock_sym = "◦";
 const icon = ""; //"⌨ ";
 const opening = ""; //"_";
 const closing = ""; //"_";
+
+// display position on top main panel
+const box = 2; //1 left, 2 center, else right
+const pos = 0; //0 first, 99 last if no other ext put higher number
 
 //TODO: eliminate global variables
 let seat;
@@ -107,8 +113,18 @@ export default class KMS extends Extension {
         if (seat) {
             mods_update_id = seat.connect("kbd-a11y-mods-state-changed", this._a11y_mods_update);
         };
-
-        Main.panel._rightBox.insert_child_at_index(button, 0);
+	    
+        switch (box) {
+            case 1:
+                Main.panel._leftBox.insert_child_at_index(button, pos);
+                break;
+            case 2:
+                Main.panel._centerBox.insert_child_at_index(button, pos);
+                break;
+            default:
+                Main.panel._rightBox.insert_child_at_index(button, pos);
+        };
+	    
         timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, this._update);
 
         console.debug(`${tag} enable() ... out`);
@@ -117,8 +133,18 @@ export default class KMS extends Extension {
 
     disable() {
         console.debug(`${tag} disable() ... in`);
+    
+        switch (box) {
+            case 1:
+                Main.panel._leftBox.remove_child(button);
+                break;
+            case 2:
+                Main.panel._centerBox.remove_child(button);
+                break;
+            default:
+                Main.panel._rightBox.remove_child(button);
+        };
 
-        Main.panel._rightBox.remove_child(button);
 
         GLib.source_remove(timeout_id);
 
