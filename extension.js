@@ -26,12 +26,9 @@ import GLib from 'gi://GLib';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-//
-const dbg = false;
-
-//TODO: convert into preferrence.
 const tag = "KMS-Ext:";
 
+//TODO: convert into preferrence.
 // Mapping of modifier masks to the displayed symbol
 const MODIFIERS = [
     [Clutter.ModifierType.SHIFT_MASK, '⇧'],
@@ -43,7 +40,6 @@ const MODIFIERS = [
     [Clutter.ModifierType.MOD4_MASK, '⌘'],
     [Clutter.ModifierType.MOD5_MASK, '⎇'],
 ];
-
 const latch_sym = "'";
 const lock_sym = "◦";
 const icon = ""; //"⌨ ";
@@ -52,8 +48,7 @@ const closing = ""; //"_";
 
 
 // Gnome-shell extension interface
-// init, enable, disable
-
+// constructor, enable, disable
 export default class KMS extends Extension {
 
     seat = null;
@@ -164,7 +159,9 @@ export default class KMS extends Extension {
     //
     _update() {
         console.debug(`${tag} _update() ... in`);
-        //TODO: search for documentation about global
+        // `global` is provided by GNOME Shell and exposes Meta.Display APIs.
+        // See GNOME Shell architecture overview:
+        // https://gjs.guide/extensions/overview/architecture.html#shell
         //Note: modifiers state from get_pointer is the base not the effective
         // On latch active, it is on too. but on lock active, it is off
         // Not the case, using Gdk.Keymap.get_default().get_modifier_state() which
@@ -203,9 +200,9 @@ export default class KMS extends Extension {
     }
 
 
-    _a11y_mods_update(o, latch_new, lock_new) {
+    // The callback receives the Clutter.Seat that emitted the signal and the latched and locked modifier mask from stickykeys.
+    _a11y_mods_update(_seat, latch_new, lock_new) {
         console.debug(`${tag} _a11y_mods_update() ... in`);
-        //TODO: search what's the 1st parameter
         if (typeof latch_new !== 'undefined') {
             this.latch = latch_new;
         };
