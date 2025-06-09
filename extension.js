@@ -31,7 +31,19 @@ const dbg = false;
 
 //TODO: convert into preferrence.
 const tag = "KMS-Ext:";
-const mod_sym = "⇧⇬⋀⌥①◆⌘⎇";
+
+// Mapping of modifier masks to the displayed symbol
+const MODIFIERS = [
+    [Clutter.ModifierType.SHIFT_MASK, '⇧'],
+    [Clutter.ModifierType.LOCK_MASK, '⇬'],
+    [Clutter.ModifierType.CONTROL_MASK, '⋀'],
+    [Clutter.ModifierType.MOD1_MASK, '⌥'],
+    [Clutter.ModifierType.MOD2_MASK, '①'],
+    [Clutter.ModifierType.MOD3_MASK, '◆'],
+    [Clutter.ModifierType.MOD4_MASK, '⌘'],
+    [Clutter.ModifierType.MOD5_MASK, '⎇'],
+];
+
 const latch_sym = "'";
 const lock_sym = "◦";
 const icon = ""; //"⌨ ";
@@ -167,24 +179,14 @@ export default class KMS extends Extension {
         if ((this.state != this.prev_state) || this.latch != this.prev_latch || this.lock != this.prev_lock) {
             console.debug(`${tag} State changed... ${this.prev_state}, ${this.state}`);
             this.indicator = icon + opening + " ";
-            //TODO: don't relay on internal order
-            //      use standard pre-defined constant masks
-            for (var i=0; i<8; i++ ) {
-                if ((this.state & 1<<i) || (this.lock & 1<<i)) {
-                    this.indicator += mod_sym[i];
-                } else {
-                    //indicator += "";
-                };
-                if (this.latch & 1<<i) {
-                    this.indicator += latch_sym + " ";
-                } else {
-                    //indicator += "";
-                };
-                if (this.lock & 1<<i) {
-                    this.indicator += lock_sym + " ";
-                } else {
-                    //indicator += "";
-                };
+            // Iterate using the predefined modifier masks
+            for (const [mask, sym] of MODIFIERS) {
+                if ((this.state & mask) || (this.lock & mask))
+                    this.indicator += sym;
+                if (this.latch & mask)
+                    this.indicator += latch_sym + ' ';
+                if (this.lock & mask)
+                    this.indicator += lock_sym + ' ';
             }
             this.indicator += " " + closing;
 
