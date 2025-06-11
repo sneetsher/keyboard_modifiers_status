@@ -28,6 +28,12 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const tag = "KMS-Ext:";
 
+// Print GNOME Shell and Clutter version to debug output.
+import * as Config from 'resource:///org/gnome/shell/misc/config.js';
+import GIRepository from 'gi://GIRepository';
+console.debug(`${tag} Shell version: ${Config.PACKAGE_VERSION}`);
+console.debug(`${tag} Clutter API: ${GIRepository.Repository.get_default().get_version('Clutter')}`);  
+
 //TODO: convert into preferrence.
 // Mapping of modifier masks to the displayed symbol
 const MODIFIERS = [

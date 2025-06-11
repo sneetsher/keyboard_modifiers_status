@@ -6,7 +6,7 @@ This is a very small and simple extension. It can be easily modified or used as 
 ## Debug tools
 
 - LookingGlass tool.
-- Follow system log, using `make debug`
+- Follow system log, using `make debug` (extension prints Shell and Clutter versions on startup)
 
 
 ## Package

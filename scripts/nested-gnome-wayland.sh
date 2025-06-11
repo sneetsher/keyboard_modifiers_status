@@ -7,4 +7,4 @@ export SHELL_DEBUG=all
 dbus-run-session -- \
     gnome-shell --nested \
                 --wayland \
-    2>&1 | grep KMS
+    2>&1 | grep -P KMS\|CRITICAL

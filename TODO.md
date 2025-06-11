@@ -1,7 +1,6 @@
 New features to do:
 
 - Add modifiers latch and lock for Xorg.
-- Add debuging to check API version.
 
 - Make indicator as for system (Shows also in login & lock screen)
   Won't fix as Gnome drop the option, So only with Gnome modification.
