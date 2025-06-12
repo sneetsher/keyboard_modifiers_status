@@ -19,14 +19,17 @@
 //
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import * as ExtensionUtils from 'resource:///org/gnome/shell/misc/extensionUtils.js';
 
-//
+// This extension displays the currently active keyboard modifiers in the panel.
+// Modifier and wrapper symbols are configurable through GSettings and the provided preferences dialog.
+
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import GLib from 'gi://GLib';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
-const tag = "KMS-Ext:";
+const tag = 'KMS-Ext:';
 
 // Print GNOME Shell and Clutter version to debug output.
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
@@ -34,24 +37,18 @@ import GIRepository from 'gi://GIRepository';
 console.debug(`${tag} Shell version: ${Config.PACKAGE_VERSION}`);
 console.debug(`${tag} Clutter API: ${GIRepository.Repository.get_default().get_version('Clutter')}`);  
 
-//TODO: convert into preferrence.
-// Mapping of modifier masks to the displayed symbol
-const MODIFIERS = [
-    [Clutter.ModifierType.SHIFT_MASK, '⇧'],
-    [Clutter.ModifierType.LOCK_MASK, '⇬'],
-    [Clutter.ModifierType.CONTROL_MASK, '⋀'],
-    [Clutter.ModifierType.MOD1_MASK, '⌥'],
-    [Clutter.ModifierType.MOD2_MASK, '①'],
-    [Clutter.ModifierType.MOD3_MASK, '◆'],
-    [Clutter.ModifierType.MOD4_MASK, '⌘'],
-    [Clutter.ModifierType.MOD5_MASK, '⎇'],
-];
-const latch_sym = "'";
-const lock_sym = "◦";
-const icon = ""; //"⌨ ";
-const opening = ""; //"_";
-const closing = ""; //"_";
-
+// Mapping of logical modifier names to the Clutter.ModifierType constants used by GNOME Shell.
+// These values are stable across versions and avoid relying on internal bit ordering.
+const MODIFIER_ENUM = {
+    SHIFT:   Clutter.ModifierType.SHIFT_MASK,
+    LOCK:    Clutter.ModifierType.LOCK_MASK,
+    CONTROL: Clutter.ModifierType.CONTROL_MASK,
+    MOD1:    Clutter.ModifierType.MOD1_MASK,
+    MOD2:    Clutter.ModifierType.MOD2_MASK,
+    MOD3:    Clutter.ModifierType.MOD3_MASK,
+    MOD4:    Clutter.ModifierType.MOD4_MASK,
+    MOD5:    Clutter.ModifierType.MOD5_MASK,
+};
 
 // Gnome-shell extension interface
 // constructor, enable, disable
@@ -67,179 +64,205 @@ export default class KMS extends Extension {
     enable() {
         console.debug(`${tag} enable() ... in`);
 
-        this.state = 0;
-        this.prev_state = 0;
-        this.latch = 0;
-        this.prev_latch = null;
-        this.lock = 0;
-        this.prev_lock = null;
+        // Last retrieved modifier state and previous values for change tracking.
+        this._state = 0;
+        this._prev_state = null;
+        this._latch = 0;
+        this._prev_latch = null;
+        this._lock = 0;
+        this._prev_lock = null;
 
-        this.indicator = null;
+        // Symbols read from settings describing each modifier and extra wrapper characters.
+        this._symModifiers = [];
+        this._symLatch = '';
+        this._symLock = '';
+        this._symIcon = '';  // prefix symbol
+        this._symOpening = '';
+        this._symClosing = '';
 
-        this.settings = this.getSettings();
+        // GSettings object for retrieving user preferences.
+        this._settings = this.getSettings();
         this._loadSettings();
-        this.settingsChangedId = this.settings.connect('changed', () => {
+        // Reload symbols whenever preferences change.
+        this._settingsChangedId = this._settings.connect('changed', () => {
             this._loadSettings();
             // Force indicator refresh on next _update (every 200ms).
-            this.prev_state = null;
+            this._prev_state = null;
         });
 
-        // Create UI elements
-        this.button = new St.Bin({ style_class: 'panel-button',
+
+        // Create the indicator displayed in the top panel.
+        this._indicator = new St.Bin({ style_class: 'panel-button',
             reactive: false,
             can_focus: false,
             x_expand: true,
             y_expand: false,
             track_hover: false });
-        this.label = new St.Label({ style_class: "state-label", text: "" });
-        this.button.set_child(this.label);
-        Main.panel._rightBox.insert_child_at_index(this.button, 0);
+        this._indicatorText = '';
+        this._label = new St.Label({ style_class: 'state-label', text: this._indicatorText });
+        this._indicator.set_child(this._label);
+        Main.panel._rightBox.insert_child_at_index(this._indicator, 0);
 
         //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
         try {
-            this.seat = Clutter.get_default_backend().get_default_seat();
+            // Clutter 1.24+ exposes the default seat via the backend object.
+            this._seat = Clutter.get_default_backend().get_default_seat();
         } catch (e) {
-            this.seat = Clutter.DeviceManager.get_default();
-        };
+            // Older versions fall back to DeviceManager.
+            this._seat = Clutter.DeviceManager.get_default();
+        }
 
-        if (this.seat) {
-            this.mods_update_id = this.seat.connect("kbd-a11y-mods-state-changed", this._a11y_mods_update.bind(this));
-        };
+        if (this._seat) {
+            // Listen for changes from the "sticky keys" accessibility feature.
+            this._mods_update_id = this._seat.connect('kbd-a11y-mods-state-changed', this._a11y_mods_update.bind(this));
+        }
 
-        this.timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, this._update.bind(this));
+        // Periodically refresh the indicator (200ms).
+        this._timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, this._update.bind(this));
 
         console.debug(`${tag} enable() ... out`);
     }
 
-
+    // Tear down everything created in enable().
     disable() {
         console.debug(`${tag} disable() ... in`);
 
-        if (this.timeout_id) {
-            GLib.source_remove(this.timeout_id);
-            this.timeout_id = null;
+        if (this._timeout_id) {
+            GLib.source_remove(this._timeout_id);
+            this._timeout_id = null;
         }
 
-        if (this.seat) {
-            if (this.mods_update_id) {
-                this.seat.disconnect(this.mods_update_id);
-                this.mods_update_id = null;
+        if (this._seat) {
+            if (this._mods_update_id) {
+                this._seat.disconnect(this._mods_update_id);
+                this._mods_update_id = null;
             }
-            this.seat = null;
+            this._seat = null;
         };
 
-        if (this.button) {
-            Main.panel._rightBox.remove_child(this.button);
-            this.button.destroy_all_children();
-            this.button.destroy();
-            this.button = null;
-            this.label = null;
+        if (this._indicator) {
+            Main.panel._rightBox.remove_child(this._indicator);
+            this._indicator.destroy_all_children();
+            this._indicator.destroy();
+            this._indicator = null;
+            this._label = null;
+            this._indicatorText = '';
         }
 
-        if (this.settings) {
-            if (this.settingsChangedId) {
-                this.settings.disconnect(this.settingsChangedId);
-                this.settingsChangedId = null;
+        if (this._settings) {
+            if (this._settingsChangedId) {
+                this._settings.disconnect(this._settingsChangedId);
+                this._settingsChangedId = null;
             }
-            this.settings = null;
+            this._settings = null;
         }
+        this._symModifiers = [];
+        this._symLatch = '';
+        this._symLock = '';
+        this._symIcon = '';
+        this._symOpening = '';
+        this._symClosing = '';
 
-        this.indicator = null;
 
-        this.state = 0;
-        this.prev_state = 0;
-        this.latch = 0;
-        this.prev_latch = null;
-        this.lock = 0;
-        this.prev_lock = null;
+        this._state = 0;
+        this._prev_state = null;
+        this._latch = 0;
+        this._prev_latch = null;
+        this._lock = 0;
+        this._prev_lock = null;
 
         console.debug(`${tag} disable() ... out`);
     }
 
+    // Read all user-configurable symbols from GSettings.
     _loadSettings() {
         console.debug(`${tag} _loadSettings() ... in`);
 
-        if (!this.settings) {
-            console.warning(`${tag} this.settings is null`);
+        if (!this._settings) {
+            console.warn(`${tag} this._settings is null`);
             return;
         }
 
-        MODIFIERS = [
-            [MODIFIER_ENUM.SHIFT, this.settings.get_string('shift-symbol')],
-            [MODIFIER_ENUM.LOCK, this.settings.get_string('caps-symbol')],
-            [MODIFIER_ENUM.CONTROL, this.settings.get_string('control-symbol')],
-            [MODIFIER_ENUM.MOD1, this.settings.get_string('mod1-symbol')],
-            [MODIFIER_ENUM.MOD2, this.settings.get_string('mod2-symbol')],
-            [MODIFIER_ENUM.MOD3, this.settings.get_string('mod3-symbol')],
-            [MODIFIER_ENUM.MOD4, this.settings.get_string('mod4-symbol')],
-            [MODIFIER_ENUM.MOD5, this.settings.get_string('mod5-symbol')],
+        this._symModifiers = [
+            [MODIFIER_ENUM.SHIFT, this._settings.get_string('shift-symbol')],
+            [MODIFIER_ENUM.LOCK, this._settings.get_string('caps-symbol')],
+            [MODIFIER_ENUM.CONTROL, this._settings.get_string('control-symbol')],
+            [MODIFIER_ENUM.MOD1, this._settings.get_string('alt-symbol')],
+            [MODIFIER_ENUM.MOD2, this._settings.get_string('num-symbol')],
+            [MODIFIER_ENUM.MOD3, this._settings.get_string('scroll-symbol')],
+            [MODIFIER_ENUM.MOD4, this._settings.get_string('super-symbol')],
+            [MODIFIER_ENUM.MOD5, this._settings.get_string('altgr-symbol')],
         ];
-        latch_sym = this.settings.get_string('latch-symbol');
-        lock_sym = this.settings.get_string('lock-symbol');
-        icon = this.settings.get_string('icon');
-        opening = this.settings.get_string('opening');
-        closing = this.settings.get_string('closing');
+        console.debug(`${tag} modifiers: ${this._symModifiers.map(v => v[1])}`);
+        this._symLatch = this._settings.get_string('latch-symbol');
+        this._symLock = this._settings.get_string('lock-symbol');
+        console.debug(`${tag} accessibility: ${this._symLatch},${this._symLock}`);
+        this._symIcon = this._settings.get_string('icon-symbol');
+        this._symOpening = this._settings.get_string('opening-symbol');
+        this._symClosing = this._settings.get_string('closing-symbol');
+        console.debug(`${tag} wrappers: ${this._symIcon},${this._symOpening},${this._symClosing}`);
 
         console.debug(`${tag} _loadSettings() ... out`);
     }
 
-    //
+    // Called periodically to refresh the label with the current modifier state.
     _update() {
         console.debug(`${tag} _update() ... in`);
         // `global` is provided by GNOME Shell and exposes Meta.Display APIs.
         // See GNOME Shell architecture overview:
         // https://gjs.guide/extensions/overview/architecture.html#shell
-        //Note: modifiers state from get_pointer is the base not the effective
+        // Note: modifiers state from get_pointer is the base not the effective
         // On latch active, it is on too. but on lock active, it is off
         // Not the case, using Gdk.Keymap.get_default().get_modifier_state() which
         // is the effective
 
+        // Current pointer position and modifier mask.
         const [x, y, m] = global.get_pointer();
 
         if (typeof m !== 'undefined') {
-            this.state = m;
+            this._state = m;
         };
 
-        if ((this.state != this.prev_state) || this.latch != this.prev_latch || this.lock != this.prev_lock) {
-            console.debug(`${tag} State changed... ${this.prev_state}, ${this.state}`);
-            this.indicator = icon + opening + " ";
+        if (this._state != this._prev_state || this._latch != this._prev_latch || this._lock != this._prev_lock) {
+            console.debug(`${tag} State ${this._prev_state}->${this._state}, latch ${this._prev_latch}->${this._latch} or lock ${this._prev_lock}->${this._lock} changed`);
+            this._indicatorText = this._symIcon + this._symOpening;
             // Iterate using the predefined modifier masks
-            for (const [mask, sym] of MODIFIERS) {
-                if ((this.state & mask) || (this.lock & mask))
-                    this.indicator += sym;
-                if (this.latch & mask)
-                    this.indicator += latch_sym + ' ';
-                if (this.lock & mask)
-                    this.indicator += lock_sym + ' ';
+            for (const [mask, sym] of this._symModifiers) {
+                // Display the symbol whenever the modifier is active, latched or locked.
+                if ((this._state & mask) || (this._latch & mask) || (this._lock & mask))
+                    this._indicatorText += sym;
+                // Append latch/lock indicators if necessary.
+                if (this._latch & mask)
+                    this._indicatorText += this._symLatch;
+                if (this._lock & mask)
+                    this._indicatorText += this._symLock;
             }
-            this.indicator += " " + closing;
+            this._indicatorText += this._symClosing;
 
-            this.label.text = this.indicator;
+            this._label.text = this._indicatorText;
 
-            this.prev_state = this.state;
-            this.prev_latch = this.latch;
-            this.prev_lock = this.lock;
+            this._prev_state = this._state;
+            this._prev_latch = this._latch;
+            this._prev_lock = this._lock;
         }
 
         console.debug(`${tag} _update() ... out`);
-        //return true;
         return GLib.SOURCE_CONTINUE;
     }
 
-
-    // The callback receives the Clutter.Seat that emitted the signal and the latched and locked modifier mask from stickykeys.
+    // Callback for the 'kbd-a11y-mods-state-changed' signal emitted by Clutter.Seat.
+    // Updates stored latch and lock states used by the indicator.
     _a11y_mods_update(_seat, latch_new, lock_new) {
         console.debug(`${tag} _a11y_mods_update() ... in`);
         if (typeof latch_new !== 'undefined') {
-            this.latch = latch_new;
+            this._latch = latch_new;
         };
         if (typeof lock_new !== 'undefined') {
-            this.lock = lock_new;
+            this._lock = lock_new;
         };
-        console.debug(`${tag} latch: ${this.latch}, lock: ${this.lock}`);
+        console.debug(`${tag} latch: ${this._latch}, lock: ${this._lock}`);
         console.debug(`${tag} _a11y_mods_update() ... out`);
-        //return true;
         return GLib.SOURCE_CONTINUE;
     }
 

@@ -11,5 +11,6 @@
 	"name": "Keyboard Modifiers Status",
 	"description": "Shows keyboard modifiers status. It's useful when sticky keys are active.",
 	"original-author": "sneetsher@localhost",
-	"url": "https://github.com/sneetsher/Keyboard-Modifiers-Status"
+        "url": "https://github.com/sneetsher/Keyboard-Modifiers-Status",
+        "settings-schema": "org.gnome.shell.extensions.keyboard-modifiers-status"
 }
