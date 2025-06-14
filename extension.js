@@ -57,48 +57,32 @@ const closing = ""; //"_";
 // constructor, enable, disable
 export default class KMS extends Extension {
 
-    seat = null;
-    button = null;
-    label = null;
-
-    state = 0;
-    prev_state = 0;
-    latch = 0;
-    prev_latch = 0;
-    lock = 0;
-    prev_lock = 0;
-
-    indicator = null;
-
-    timeout_id = null;
-    mods_update_id = null;
-
-
     constructor(metadata) {
         super(metadata);
-
+        // Don't create or initialize anything here. Use enable() method for initialization.
+        // Follow the guidelines: https://gjs.guide/extensions/review-guidelines/review-guidelines.html
         console.debug(`${tag} constructor() ... done ${this.metadata.name}`);
     }
 
     enable() {
         console.debug(`${tag} enable() ... in`);
 
-        // Initialize properties
-        this.seat = null;
-        this.button = null;
-        this.label = null;
-
         this.state = 0;
         this.prev_state = 0;
         this.latch = 0;
-        this.prev_latch = 0;
+        this.prev_latch = null;
         this.lock = 0;
-        this.prev_lock = 0;
+        this.prev_lock = null;
 
         this.indicator = null;
 
-        this.timeout_id = null;
-        this.mods_update_id = null;
+        this.settings = this.getSettings();
+        this._loadSettings();
+        this.settingsChangedId = this.settings.connect('changed', () => {
+            this._loadSettings();
+            // Force indicator refresh on next _update (every 200ms).
+            this.prev_state = null;
+        });
 
         // Create UI elements
         this.button = new St.Bin({ style_class: 'panel-button',
@@ -109,6 +93,7 @@ export default class KMS extends Extension {
             track_hover: false });
         this.label = new St.Label({ style_class: "state-label", text: "" });
         this.button.set_child(this.label);
+        Main.panel._rightBox.insert_child_at_index(this.button, 0);
 
         //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
@@ -122,7 +107,6 @@ export default class KMS extends Extension {
             this.mods_update_id = this.seat.connect("kbd-a11y-mods-state-changed", this._a11y_mods_update.bind(this));
         };
 
-        Main.panel._rightBox.insert_child_at_index(this.button, 0);
         this.timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, this._update.bind(this));
 
         console.debug(`${tag} enable() ... out`);
@@ -132,34 +116,72 @@ export default class KMS extends Extension {
     disable() {
         console.debug(`${tag} disable() ... in`);
 
-        Main.panel._rightBox.remove_child(this.button);
+        if (this.timeout_id) {
+            GLib.source_remove(this.timeout_id);
+            this.timeout_id = null;
+        }
 
-        GLib.source_remove(this.timeout_id);
-
-        if (this.seat && this.mods_update_id) {
-            this.seat.disconnect(this.mods_update_id);
+        if (this.seat) {
+            if (this.mods_update_id) {
+                this.seat.disconnect(this.mods_update_id);
+                this.mods_update_id = null;
+            }
+            this.seat = null;
         };
 
-        this.button.destroy_all_children();
-        this.button.destroy();
+        if (this.button) {
+            Main.panel._rightBox.remove_child(this.button);
+            this.button.destroy_all_children();
+            this.button.destroy();
+            this.button = null;
+            this.label = null;
+        }
 
-        this.seat = null;
-        this.button = null;
-        this.label = null;
+        if (this.settings) {
+            if (this.settingsChangedId) {
+                this.settings.disconnect(this.settingsChangedId);
+                this.settingsChangedId = null;
+            }
+            this.settings = null;
+        }
+
+        this.indicator = null;
 
         this.state = 0;
         this.prev_state = 0;
         this.latch = 0;
-        this.prev_latch = 0;
+        this.prev_latch = null;
         this.lock = 0;
-        this.prev_lock = 0;
-
-        this.indicator = null;
-
-        this.timeout_id = null;
-        this.mods_update_id = null;
+        this.prev_lock = null;
 
         console.debug(`${tag} disable() ... out`);
+    }
+
+    _loadSettings() {
+        console.debug(`${tag} _loadSettings() ... in`);
+
+        if (!this.settings) {
+            console.warning(`${tag} this.settings is null`);
+            return;
+        }
+
+        MODIFIERS = [
+            [MODIFIER_ENUM.SHIFT, this.settings.get_string('shift-symbol')],
+            [MODIFIER_ENUM.LOCK, this.settings.get_string('caps-symbol')],
+            [MODIFIER_ENUM.CONTROL, this.settings.get_string('control-symbol')],
+            [MODIFIER_ENUM.MOD1, this.settings.get_string('mod1-symbol')],
+            [MODIFIER_ENUM.MOD2, this.settings.get_string('mod2-symbol')],
+            [MODIFIER_ENUM.MOD3, this.settings.get_string('mod3-symbol')],
+            [MODIFIER_ENUM.MOD4, this.settings.get_string('mod4-symbol')],
+            [MODIFIER_ENUM.MOD5, this.settings.get_string('mod5-symbol')],
+        ];
+        latch_sym = this.settings.get_string('latch-symbol');
+        lock_sym = this.settings.get_string('lock-symbol');
+        icon = this.settings.get_string('icon');
+        opening = this.settings.get_string('opening');
+        closing = this.settings.get_string('closing');
+
+        console.debug(`${tag} _loadSettings() ... out`);
     }
 
     //
