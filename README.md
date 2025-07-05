@@ -22,7 +22,7 @@ Choose a method
             unzip keyboard_modifiers_status@sneetsher.zip -d ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher
 
         or
-            
+
             make install
     
     2. Restart gnome-shell, using <kbd>Alt</kbd>+<kbd>F2</kbd> then `r`+<kbd>Enter</kbd> with Xorg or logout/login with Wayland.
@@ -33,6 +33,9 @@ Choose a method
 
 
 ## Extras
+
+- The preferences window allows customizing modifier mappings and display symbols.
+  Symbols can be adjusted individually, loaded from presets or saved as a custom preset.
 
 - Enable an extension for all users (machine-wide)
 

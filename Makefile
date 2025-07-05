@@ -13,6 +13,9 @@ build:
 install:
 	mkdir -p ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/
 	cp ./*.js* ./*.css ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/
+	mkdir -p ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/schemas
+	cp schemas/*.gschema.xml ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/schemas
+	glib-compile-schemas ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/schemas
 
 test: test-js
 
@@ -25,7 +28,10 @@ dist-clean:
 
 dist: dist-clean
 	mkdir -p package
-	zip -j package/keyboard_modifiers_status@sneetsher.zip ./*.js* ./*.css
+	glib-compile-schemas schemas
+	zip -j package/keyboard_modifiers_status@sneetsher.zip \
+./*.js* ./*.css schemas/*.gschema.xml schemas/gschemas.compiled
+	rm schemas/gschemas.compiled
 
 test-js:
 	gjs ./lab/test_gjs_gdk_modifiers.js

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+	<schema id="org.gnome.shell.extensions.keyboard-modifiers-status" path="/org/gnome/shell/extensions/keyboard-modifiers-status/">
+		<key name="shift-symbol" type="s">
+			<default>'⇧'</default>
+			<summary>Shift</summary>
+			<description>Symbol displayed when the Shift modifier is active.</description>
+		</key>
+		<key name="caps-symbol" type="s">
+			<default>'⇬'</default>
+			<summary>Caps Lock</summary>
+			<description>Symbol displayed when the Caps Lock modifier is active.</description>
+		</key>
+		<key name="control-symbol" type="s">
+			<default>'⋀'</default>
+			<summary>Control</summary>
+			<description>Symbol displayed when the Control modifier is active.</description>
+		</key>
+		<key name="alt-symbol" type="s">
+			<default>'⌥'</default>
+			<summary>Alt</summary>
+			<description>Symbol displayed when the Alt modifier is active.</description>
+		</key>
+		<key name="num-symbol" type="s">
+			<default>'①'</default>
+			<summary>Num Lock</summary>
+			<description>Symbol displayed when the Num Lock modifier is active.</description>
+		</key>
+		<key name="scroll-symbol" type="s">
+			<default>'◆'</default>
+			<summary>Scroll Lock</summary>
+			<description>Symbol displayed when the Scroll Lock modifier is active.</description>
+		</key>
+		<key name="super-symbol" type="s">
+			<default>'⌘'</default>
+			<summary>Super</summary>
+			<description>Symbol displayed when the Super modifier is active.</description>
+		</key>
+		<key name="altgr-symbol" type="s">
+			<default>'⎇'</default>
+			<summary>AltGr</summary>
+			<description>Symbol displayed when the AltGr modifier is active.</description>
+		</key>
+		<key name="latch-symbol" type="s">
+			<default>'\''</default>
+			<summary>Latch</summary>
+			<description>Symbol displayed when a modifier is latched.</description>
+		</key>
+		<key name="lock-symbol" type="s">
+			<default>'◦'</default>
+			<summary>Lock</summary>
+			<description>Symbol displayed when a modifier is locked.</description>
+		</key>
+		<key name="icon-symbol" type="s">
+			<default>''</default>
+			<summary>Icon</summary>
+			<description>Optional string shown before the opening of modifiers list.</description>
+		</key>
+		<key name="opening-symbol" type="s">
+			<default>''</default>
+			<summary>Opening</summary>
+			<description>String placed before the modifiers state display.</description>
+		</key>
+		<key name="closing-symbol" type="s">
+			<default>''</default>
+			<summary>Closing</summary>
+			<description>String placed after the modifiers state display.</description>
+		</key>
+		<key name="saved-symbols" type="a{ss}">
+			<default>{}</default>
+			<summary>Saved custom symbols</summary>
+			<description>Symbol values stored when using the Save preset.</description>
+		</key>
+	</schema>
+</schemalist>
