@@ -35,8 +35,14 @@ const tag = 'KMS-Ext:';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import GIRepository from 'gi://GIRepository';
 console.debug(`${tag} Shell version: ${Config.PACKAGE_VERSION}`);
-console.debug(`${tag} Clutter API: ${GIRepository.Repository.get_default().get_version('Clutter')}`);  
-
+try {
+    // GNOME Shell 49+ does not expose get_version() as a static method.
+    console.debug(`${tag} Clutter API: ${GIRepository.Repository.dup_default().get_version('Clutter')}`);  
+} catch (e) {
+    // Older versions fall back to static method call.
+    console.debug(`${tag} Clutter API: ${GIRepository.Repository.get_default().get_version('Clutter')}`);  
+}
+    
 // Mapping of logical modifier names to the Clutter.ModifierType constants used by GNOME Shell.
 // These values are stable across versions and avoid relying on internal bit ordering.
 const MODIFIER_ENUM = {
