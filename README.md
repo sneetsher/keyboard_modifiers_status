@@ -5,7 +5,7 @@
  Current supported features:
 
  - Indicates status of these modifiers: Shift, Caps, Control, Alt, AltGr, Meta/Cmd, Num, (Scroll?)
- - Shows these states: (Off, Latched, Locked) in Wayland, (Off, Active) in Xorg
+ - Shows these states: (Off, Latched, Locked) in Wayland, (Off, Active) in Xorg/dropped with Gnome-49
 
 ## Install
 
@@ -17,20 +17,16 @@ Choose a method
 
 - Manually
 
-    1. Extract it into a subfolder `keyboard_modifiers_status@sneetsher` in `~/.local/share/gnome-shell/extensions/`
-    
-            unzip keyboard_modifiers_status@sneetsher.zip -d ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher
+    1. Download source archive and extract it or clone repo.
+    2. Install with:
 
-        or
-
-            make install
+            gnome-extensions pack
+            gnome-extensions install keyboard_modifiers_status@*.zip
     
-    2. Restart gnome-shell, using <kbd>Alt</kbd>+<kbd>F2</kbd> then `r`+<kbd>Enter</kbd> with Xorg or logout/login with Wayland.
-    
-    3. Enable it
+    3. Logout/login.
+    4. Enable it:
     
             gnome-extensions enable keyboard_modifiers_status@sneetsher
-
 
 ## Extras
 
@@ -40,7 +36,6 @@ Choose a method
 - Enable an extension for all users (machine-wide)
 
     See https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en
-
 
 
 ## Alternatives
@@ -56,4 +51,4 @@ Choose a method
 
 ## Developer hints
 
-For anyone looking to modify it or creating anternative solution. Check [HACKING.md](HACKING.md) file.
+For anyone looking to modify it or creating alternative solution. Check [HACKING.md](HACKING.md) file.
