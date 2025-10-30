@@ -357,7 +357,3 @@ export default class Prefs extends ExtensionPreferences {
 		return keys.some(k => this._currentSymbols[k] !== (this._savedSymbols[k] ?? ''));
 	}
 }
-
-export function init() {
-	return new Prefs();
-}
