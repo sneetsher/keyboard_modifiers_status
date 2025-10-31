@@ -17,6 +17,8 @@ export default class Prefs extends ExtensionPreferences {
 		this._settings = this.getSettings();
 		this._schema = this._settings.settings_schema;
 		this._window = window;
+		this._signalHandlers = [];
+		this._pendingSignalUnblocks = new Set();
 
 		// Keys grouped by their meaning in the settings schema.
 		const modifiersKeys = ['shift-symbol', 'caps-symbol', 'control-symbol', 'alt-symbol', 'num-symbol', 'scroll-symbol', 'super-symbol', 'altgr-symbol'];
@@ -65,6 +67,9 @@ export default class Prefs extends ExtensionPreferences {
 		window.add(this._page);
 		window.show();
 
+		// Connect the cleanup method to the close-request signal
+		window.connect('close-request', () => this._cleanup());
+
 		console.debug(`${tag} fillPreferencesWindow() ... out`);
 	}
 
@@ -112,10 +117,7 @@ export default class Prefs extends ExtensionPreferences {
 				console.debug(`${tag} updatePresetsBox: set dropdown selected: ${foundIdx}`);
 				presetsDropDown.selected = foundIdx;
 				// Wait until idle, to not unblock too early. When unblocking without wait, the dropdown update is sometimes triggered.
-				GLib.idle_add(null, () => {
-					presetsDropDown.unblock_signal_handler(dropdownNotifyId);
-					return GLib.SOURCE_REMOVE;
-				});
+				this._queueSignalUnblock(presetsDropDown, dropdownNotifyId);
 			}
 			refreshSaveButton();
 		};
@@ -146,10 +148,7 @@ export default class Prefs extends ExtensionPreferences {
 							console.debug(`${tag} presetsDropDown.notify::selected: applyPreset: change entry text: ${entry.text} -> ${val}`);
 							entry.text = val;
 							// Wait before unblocking, to not unblock too early and trigger update.
-							GLib.idle_add(null, () => {
-								entry.unblock_signal_handler(changedId);
-								return GLib.SOURCE_REMOVE;
-							});
+							this._queueSignalUnblock(entry, changedId);
 						}
 						console.debug(`${tag} presetsDropDown.notify::selected: applyPreset: set ${k} to ${val}`);
 						// Save to settings.
@@ -165,27 +164,34 @@ export default class Prefs extends ExtensionPreferences {
 			}
 			applyPreset();
 		});
+		this._signalHandlers.push({ obj: presetsDropDown, id: dropdownNotifyId });
 
 		// Save symbols to Saved preset when save button is clicked.
-		saveButton.connect('clicked', () => {
-			console.debug(`${tag} saveButton:clicked`);
-			keys.forEach(k => {
-				this._savedSymbols[k] = this._currentSymbols[k];
-			});
-			console.debug(`${tag} saveButton:clicked: set saved symbols to: ${JSON.stringify(this._savedSymbols)}`);
-			this._settings.set_value('saved-symbols', new GLib.Variant('a{ss}', this._savedSymbols));
-			updatePresetsBox(dropdownNotifyId);
+		this._signalHandlers.push({
+			obj: saveButton,
+			id: saveButton.connect('clicked', () => {
+				console.debug(`${tag} saveButton:clicked`);
+				keys.forEach(k => {
+					this._savedSymbols[k] = this._currentSymbols[k];
+				});
+				console.debug(`${tag} saveButton:clicked: set saved symbols to: ${JSON.stringify(this._savedSymbols)}`);
+				this._settings.set_value('saved-symbols', new GLib.Variant('a{ss}', this._savedSymbols));
+				updatePresetsBox(dropdownNotifyId);
+			})
 		});
 
 		// When saved symbols are changed outside from these preferences, update the UI elements.
-		this._settings.connect('changed::saved-symbols', () => {
-			console.debug(`${tag} settings:changed::saved-symbols`);
-			const newSavedSymbols = this._settings.get_value('saved-symbols').deep_unpack();
-			const equal = this._symbolsObjectsEqual(this._savedSymbols, newSavedSymbols);
-			console.debug(`${tag} settings:changed::saved-symbols: new ${JSON.stringify(newSavedSymbols)}, equal:${equal}`);
-			if (!equal) {
-				updatePresetsBox(dropdownNotifyId);
-			}
+		this._signalHandlers.push({
+			obj: this._settings,
+			id: this._settings.connect('changed::saved-symbols', () => {
+				console.debug(`${tag} settings:changed::saved-symbols`);
+				const newSavedSymbols = this._settings.get_value('saved-symbols').deep_unpack();
+				const equal = this._symbolsObjectsEqual(this._savedSymbols, newSavedSymbols);
+				console.debug(`${tag} settings:changed::saved-symbols: new ${JSON.stringify(newSavedSymbols)}, equal:${equal}`);
+				if (!equal) {
+					updatePresetsBox(dropdownNotifyId);
+				}
+			})
 		});
 
 		// Update the newly created dropbox and save button accordingly to current set symbols.
@@ -224,26 +230,27 @@ export default class Prefs extends ExtensionPreferences {
 				entry: entry,
 				changedId: entry_changed_id
 			};
+			this._signalHandlers.push({ obj: entry, id: entry_changed_id });
 
 			// Handle the settings changed outside of this presets and populate UI elements if needed..
-			this._settings.connect(`changed::${key}`, () => {
-				console.debug(`${tag} _addGroup: setting::changed::${key}() ... in`);
-				const val = this._settings.get_string(key);
-				if (this._currentSymbols[key] !== val) {
-					console.debug(`${tag} _addGroup: setting::changed::${key} : ${this._currentSymbols[key]} -> ${val})`);
-					this._currentSymbols[key] = val;
-					// Block entry update signal before changing, to not trigger update.
-					entry.block_signal_handler(entry_changed_id);
-					console.debug(`${tag} _addGroup: entry::changed ${key}: entry textset ${val}`);
-					entry.text = val;
-					// Wait before unblocking, to not unblock too early and trigger update.
-					GLib.idle_add(null, () => {
-						entry.unblock_signal_handler(entry_changed_id);
-						return GLib.SOURCE_REMOVE;
-					});
-					updatePresetsBox(dropdownNotifyId);
-				}
-				console.debug(`${tag} _addGroup: setting::changed::${key}() ... out`);
+			this._signalHandlers.push({
+				obj: this._settings,
+				id: this._settings.connect(`changed::${key}`, () => {
+					console.debug(`${tag} _addGroup: setting::changed::${key}() ... in`);
+					const val = this._settings.get_string(key);
+					if (this._currentSymbols[key] !== val) {
+						console.debug(`${tag} _addGroup: setting::changed::${key} : ${this._currentSymbols[key]} -> ${val})`);
+						this._currentSymbols[key] = val;
+						// Block entry update signal before changing, to not trigger update.
+						entry.block_signal_handler(entry_changed_id);
+						console.debug(`${tag} _addGroup: entry::changed ${key}: entry textset ${val}`);
+						entry.text = val;
+						// Wait before unblocking, to not unblock too early and trigger update.
+						this._queueSignalUnblock(entry, entry_changed_id);
+						updatePresetsBox(dropdownNotifyId);
+					}
+					console.debug(`${tag} _addGroup: setting::changed::${key}() ... out`);
+				})
 			});
 		});
 
@@ -316,28 +323,28 @@ export default class Prefs extends ExtensionPreferences {
 		dialog.set_response_appearance('switch', Adw.ResponseAppearance.DESTRUCTIVE);
 		dialog.set_default_response('cancel');
 		dialog.set_close_response('cancel');
-		dialog.connect('response', (_d, resp) => {
-			console.debug(`${tag} _showSwitchDialog: dialog:response: ${resp}`);
-			if (resp === 'cancel') {
-				// Cancel was clicked, return dropdown to Custom preset, but block signal first to not trigger the update again.
-				presetsDropDown.block_signal_handler(dropdownNotifyId);
-				presetsDropDown.selected = 0; // Custom preset.
-				// Wait before unblocking to not unblock too early and triggering the update.
-				GLib.idle_add(null, () => {
-					presetsDropDown.unblock_signal_handler(dropdownNotifyId);
-					return GLib.SOURCE_REMOVE;
-				});
-			} else {
-				// Save or Switch was clicked. Switch anyways, but if save was clicked, save first.
-				if (resp === 'save') {
-					keys.forEach(k => {
-						this._savedSymbols[k] = this._currentSymbols[k];
-					});
-					this._settings.set_value('saved-symbols', new GLib.Variant('a{ss}', this._savedSymbols));
+		this._signalHandlers.push({
+			obj: dialog,
+			id: dialog.connect('response', (_d, resp) => {
+				console.debug(`${tag} _showSwitchDialog: dialog:response: ${resp}`);
+				if (resp === 'cancel') {
+					// Cancel was clicked, return dropdown to Custom preset, but block signal first to not trigger the update again.
+					presetsDropDown.block_signal_handler(dropdownNotifyId);
+					presetsDropDown.selected = 0; // Custom preset.
+					// Wait before unblocking to not unblock too early and triggering the update.
+					this._queueSignalUnblock(presetsDropDown, dropdownNotifyId);
+				} else {
+					// Save or Switch was clicked. Switch anyways, but if save was clicked, save first.
+					if (resp === 'save') {
+						keys.forEach(k => {
+							this._savedSymbols[k] = this._currentSymbols[k];
+						});
+						this._settings.set_value('saved-symbols', new GLib.Variant('a{ss}', this._savedSymbols));
+					}
+					applyPreset();
 				}
-				applyPreset();
-			}
-			dialog.destroy();
+				dialog.destroy();
+			})
 		});
 		dialog.show();
 	}
@@ -355,5 +362,82 @@ export default class Prefs extends ExtensionPreferences {
 	_currentDifferSaved(keys) {
 		// Returns true when the current values diverge from the last saved preset.
 		return keys.some(k => this._currentSymbols[k] !== (this._savedSymbols[k] ?? ''));
+	}
+
+	// Queue signal handler unblock so idle sources can finish even if window closes.
+	_queueSignalUnblock(obj, handlerId, customUnblock = null) {
+		if (!obj || !handlerId)
+			return;
+		if (!this._pendingSignalUnblocks)
+			this._pendingSignalUnblocks = new Set();
+
+		const entry = {
+			obj,
+			handlerId,
+			unblockFn: customUnblock ?? (() => obj.unblock_signal_handler(handlerId)),
+			sourceId: 0,
+		};
+
+		entry.sourceId = GLib.idle_add(null, () => {
+			this._pendingSignalUnblocks?.delete(entry);
+			try {
+				entry.unblockFn?.();
+			} catch (e) {
+				console.debug(`${tag} _queueSignalUnblock: unblock failed for handler ${handlerId}: ${e}`);
+			}
+			return GLib.SOURCE_REMOVE;
+		});
+
+		if (entry.sourceId)
+			this._pendingSignalUnblocks.add(entry);
+		else {
+			try {
+				entry.unblockFn?.();
+			} catch (e) {
+				console.debug(`${tag} _queueSignalUnblock: immediate unblock failed for handler ${handlerId}: ${e}`);
+			}
+		}
+	}
+
+	// Flush queued unblocks and remove their idle sources during cleanup.
+	_drainPendingSignalUnblocks() {
+		if (!this._pendingSignalUnblocks?.size)
+			return;
+		for (const entry of this._pendingSignalUnblocks) {
+			if (entry.sourceId)
+				GLib.source_remove(entry.sourceId);
+			try {
+				entry.unblockFn?.();
+			} catch (e) {
+				console.debug(`${tag} _drainPendingSignalUnblocks: unblock failed for handler ${entry.handlerId}: ${e}`);
+			}
+		}
+		this._pendingSignalUnblocks.clear();
+	}
+
+	// Cleanup method to disconnect all signal handlers and nullify object references.
+	_cleanup() {
+		console.debug(`${tag} _cleanup() ... in`);
+		this._drainPendingSignalUnblocks();
+		// Disconnect all signal handlers
+		if (this._signalHandlers) {
+			this._signalHandlers.forEach(({ obj, id }) => {
+				if (obj && id) {
+					obj.disconnect(id);
+				}
+			});
+			this._signalHandlers = null;
+		}
+		this._pendingSignalUnblocks = null;
+
+		// Nullify object references
+		this._settings = null;
+		this._schema = null;
+		this._window = null;
+		this._currentSymbols = null;
+		this._savedSymbols = null;
+		this._groupEntries = null;
+		this._page = null;
+		console.debug(`${tag} _cleanup() ... out`);
 	}
 }
