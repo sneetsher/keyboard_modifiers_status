@@ -28,10 +28,7 @@ dist-clean:
 
 dist: dist-clean
 	mkdir -p package
-	glib-compile-schemas schemas
-	zip -j package/keyboard_modifiers_status@sneetsher.zip \
-./*.js* ./*.css schemas/*.gschema.xml schemas/gschemas.compiled
-	rm schemas/gschemas.compiled
+	zip -r package/keyboard_modifiers_status@sneetsher.zip ./*.js* ./*.css schemas
 
 test-js:
 	gjs ./lab/test_gjs_gdk_modifiers.js
