@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
+
+	<enum id="org.gnome.shell.extensions.keyboard-modifiers-status.PanelSide">
+		<value value="0" nick="LEFT" />
+		<value value="1" nick="CENTER" />
+		<value value="2" nick="RIGHT" />
+	</enum>
+
 	<schema id="org.gnome.shell.extensions.keyboard-modifiers-status" path="/org/gnome/shell/extensions/keyboard-modifiers-status/">
 		<key name="shift-symbol" type="s">
 			<default>'⇧'</default>
@@ -71,5 +78,17 @@
 			<summary>Saved custom symbols</summary>
 			<description>Symbol values stored when using the Save preset.</description>
 		</key>
+		<key name="panel-side" enum="org.gnome.shell.extensions.keyboard-modifiers-status.PanelSide">
+			<default>'RIGHT'</default>
+			<summary>Panel Side</summary>
+			<description>Side of Gnome-Shell panel where to show indicator.</description>
+		</key>
+		<key name="indicator-order" type="i">
+			<default>0</default>
+			<range min="-1" max="100"/>
+			<summary>Indicator Order</summary>
+			<description>Indicator order to other indicators on the panel box.</description>
+		</key>
+
 	</schema>
 </schemalist>
