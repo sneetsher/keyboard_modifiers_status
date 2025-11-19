@@ -73,16 +73,10 @@ export default class KMS extends Extension {
         this._symOpening = '';
         this._symClosing = '';
 
-        // GSettings object for retrieving user preferences.
-        this._settings = this.getSettings();
-        this._loadSettings();
-        // Reload symbols whenever preferences change.
-        this._settingsChangedId = this._settings.connect('changed', () => {
-            this._loadSettings();
-            // Force indicator refresh on next _update (every 200ms).
-            this._prev_state = null;
-        });
-
+        this._panSide = 2;
+        this._indOrder = 0;
+        this._panSideActive = -1;
+        this._indOrderActive = -1;
 
         // Create the indicator displayed in the top panel.
         this._indicator = new St.Bin({ style_class: 'panel-button',
@@ -94,7 +88,20 @@ export default class KMS extends Extension {
         this._indicatorText = '';
         this._label = new St.Label({ style_class: 'state-label', text: this._indicatorText });
         this._indicator.set_child(this._label);
-        Main.panel._rightBox.insert_child_at_index(this._indicator, 0);
+
+        // GSettings object for retrieving user preferences.
+        this._settings = this.getSettings();
+        this._loadSettings();
+        // Reload symbols whenever preferences change.
+        this._settingsChangedId = this._settings.connect('changed', () => {
+            this._loadSettings();
+            // Force indicator refresh on next _update (every 200ms).
+            this._prev_state = null;
+            this._remove_indicator();
+            this._insert_indicator();
+        });
+
+        this._insert_indicator();
 
         //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
@@ -135,7 +142,11 @@ export default class KMS extends Extension {
         };
 
         if (this._indicator) {
-            Main.panel._rightBox.remove_child(this._indicator);
+            
+            this._remove_indicator();
+            this._panSide = null;
+            this._indOrder = null;
+
             this._indicator.destroy_all_children();
             this._indicator.destroy();
             this._indicator = null;
@@ -156,7 +167,6 @@ export default class KMS extends Extension {
         this._symIcon = '';
         this._symOpening = '';
         this._symClosing = '';
-
 
         this._state = 0;
         this._prev_state = null;
@@ -195,9 +205,48 @@ export default class KMS extends Extension {
         this._symOpening = this._settings.get_string('opening-symbol');
         this._symClosing = this._settings.get_string('closing-symbol');
         console.debug(`${tag} wrappers: ${this._symIcon},${this._symOpening},${this._symClosing}`);
+        this._panSide = this._settings.get_enum('panel-side');
+        this._indOrder = this._settings.get_int('indicator-order');
+        console.debug(`${tag} position: ${this._panSide},${this._indOrder}`);
 
         console.debug(`${tag} _loadSettings() ... out`);
     }
+
+
+    _insert_indicator() {
+        if (this._panSideActive == -1) {
+            switch (this._panSide) {
+                case 0:
+                    Main.panel._leftBox.insert_child_at_index(this._indicator, this._indOrder);
+                    break;
+                case 1:
+                    Main.panel._centerBox.insert_child_at_index(this._indicator, this._indOrder);
+                    break;
+                default:
+                    Main.panel._rightBox.insert_child_at_index(this._indicator, this._indOrder);
+            }
+            this._panSideActive = this._panSide;
+            this._indOrderActive = this._indOrder;
+        };
+    }
+
+    _remove_indicator() {
+        if (this._panSideActive != -1) {
+            switch (this._panSideActive) {
+                case 0:
+                    Main.panel._leftBox.remove_child(this._indicator);
+                    break;
+                case 1:
+                    Main.panel._centerBox.remove_child(this._indicator);
+                    break;
+                default:
+                    Main.panel._rightBox.remove_child(this._indicator);
+            }
+            this._panSideActive = -1;
+            this._indOrderActive = -1;
+        };
+    }
+
 
     // Called periodically to refresh the label with the current modifier state.
     _update() {
