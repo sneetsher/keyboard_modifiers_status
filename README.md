@@ -20,13 +20,13 @@ Choose a method
     1. Download source archive and extract it or clone repo.
     2. Install with:
 
-            gnome-extensions pack
-            gnome-extensions install keyboard_modifiers_status@*.zip
+          gnome-extensions pack
+          gnome-extensions install keyboard_modifiers_status@*.zip
     
     3. Logout/login.
     4. Enable it:
-    
-            gnome-extensions enable keyboard_modifiers_status@sneetsher
+
+          gnome-extensions enable keyboard_modifiers_status@sneetsher
 
 ## Preferences
 
@@ -35,17 +35,17 @@ Choose a method
 
 - Prefrences are accessible through CLI to using `gsettings` or if you prefer a wrapper `./scripts/gset` from this repo. Example:
 
-            ## at left within menu corner, last position
-            ./scripts/gset set panel-side LEFT
-            ./scripts/gset set indicator-order -1
+      ## at left within menu corner, last position
+      ./scripts/gset set panel-side LEFT
+      ./scripts/gset set indicator-order -1
 
-            ## at center with date, first position
-            ./scripts/gset set panel-side CENTER
-            ./scripts/gset set indicator-order 0
+      ## at center with date, first position
+      ./scripts/gset set panel-side CENTER
+      ./scripts/gset set indicator-order 0
 
-            ## list all, reset all to default
-            ./scripts/gset
-            ./scripts/gset reset-recursively
+      ## list all, reset all to default
+      ./scripts/gset
+      ./scripts/gset reset-recursively
 
 ## Extras
 
