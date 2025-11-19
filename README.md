@@ -5,7 +5,7 @@
  Current supported features:
 
  - Indicates status of these modifiers: Shift, Caps, Control, Alt, AltGr, Meta/Cmd, Num, (Scroll?)
- - Shows these states: (Off, Latched, Locked) in Wayland, (Off, Active) in Xorg/dropped with Gnome-49
+ - Shows these states: (Off, Active, Latched, Locked) in Wayland, (Off, Active) in Xorg session dropped from Gnome-shell 49
 
 ## Install
 
@@ -28,10 +28,26 @@ Choose a method
     
             gnome-extensions enable keyboard_modifiers_status@sneetsher
 
-## Extras
+## Preferences
 
 - The preferences window allows customizing modifier mappings and display symbols.
   Symbols can be adjusted individually, loaded from presets or saved as a custom preset.
+
+- Prefrences are accessible through CLI to using `gsettings` or if you prefer a wrapper `./scripts/gset` from this repo. Example:
+
+            ## at left within menu corner, last position
+            ./scripts/gset set panel-side LEFT
+            ./scripts/gset set indicator-order -1
+
+            ## at center with date, first position
+            ./scripts/gset set panel-side CENTER
+            ./scripts/gset set indicator-order 0
+
+            ## list all, reset all to default
+            ./scripts/gset
+            ./scripts/gset reset-recursively
+
+## Extras
 
 - Enable an extension for all users (machine-wide)
 
