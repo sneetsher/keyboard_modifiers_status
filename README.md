@@ -20,18 +20,20 @@ Choose a method
     1. Download source archive and extract it or clone repo.
     2. Install with:
 
-          gnome-extensions pack
-          gnome-extensions install keyboard_modifiers_status@*.zip
+           gnome-extensions pack
+           gnome-extensions install keyboard_modifiers_status@*.zip
     
     3. Logout/login.
     4. Enable it:
 
-          gnome-extensions enable keyboard_modifiers_status@sneetsher
+           gnome-extensions enable keyboard_modifiers_status@sneetsher
 
 ## Preferences
 
 - The preferences window allows customizing modifier mappings and display symbols.
   Symbols can be adjusted individually, loaded from presets or saved as a custom preset.
+
+      gnome-extensions prefs keyboard_modifiers_status@sneetsher
 
 - Prefrences are accessible through CLI to using `gsettings` or if you prefer a wrapper `./scripts/gset` from this repo. Example:
 
