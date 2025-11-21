@@ -126,6 +126,12 @@ export default class KMS extends Extension {
 
     // Tear down everything created in enable().
     disable() {
+	/*
+	 * Keep active in all modes
+	 * This ext shows modifiers status, gnome-shell don't have such
+	 * accessibility feature yet. As inside user session, users who
+	 * need it, require modifiers status for any keyboard typing.
+	 */
         console.debug(`${tag} disable() ... in`);
 
         if (this._timeout_id) {
