@@ -106,11 +106,16 @@ export default class KMS extends Extension {
         //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
         try {
-            // Clutter 1.24+ exposes the default seat via the backend object.
-            this._seat = Clutter.get_default_backend().get_default_seat();
+            // Gnome-shell v51 removed Clutter.get_default_backend()
+            this._seat = global.stage.context.get_backend().get_default_seat();
         } catch (e) {
-            // Older versions fall back to DeviceManager.
-            this._seat = Clutter.DeviceManager.get_default();
+            try {
+                // Clutter 1.24+ exposes the default seat via the backend object.
+                this._seat = Clutter.get_default_backend().get_default_seat();
+            } catch (e) {
+                // Older versions fall back to DeviceManager.
+                this._seat = Clutter.DeviceManager.get_default();
+            }
         }
 
         if (this._seat) {
