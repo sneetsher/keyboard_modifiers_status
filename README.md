@@ -10,11 +10,15 @@
  - Customizable display location on Gnome-shell top bar (through CLI or any gsettings editor): left|center|right x first|..|last
 
 ### Some alternatives and some still coming
+| Year | Repo | Display | Key | Feature |
+|:---|:---|:---|:---|:---|
+| 2011-... | https://github.com/kazysmaster/gnome-shell-extension-lockkeys | EXT(Topbar) | Num,Caps | (show effective; click to set) |
+| 2015-... | this | EXT(Topbar) | Shift,Caps,Control,Alt,AltGr,Meta,Num,Scroll | (show effective,latch,lock) |
+| 2016-2018 | https://github.com/caasiu/gnome-shell-extension-KeysIndicator | EXT(Topbar) | Ctrl,Shift,Alt,Caps,Num | (show effective) |
+| 2021 | https://github.com/marf41/stickind | CLI(XKB) | Shift,Ctrl,Alt,AltGr,Win | (show effective,latch,lock) |
+| 2025-... | https://github.com/tomasmark79/kbd-informer/ | EXT(Topbar+Notify) | Shift,Caps,Control,Alt,AltGr,Meta,Num,Scroll | (show effective,latch,lock) |
 
-- 2011-... https://github.com/kazysmaster/gnome-shell-extension-lockkeys
-- 2016-2018 https://github.com/caasiu/gnome-shell-extension-KeysIndicator
-- 2021 https://github.com/marf41/stickind
-- 2025-... https://github.com/tomasmark79/kbd-informer/
+- Search extension portal for: "lock key" ...
   
 ## Let's not forget top objective to fix such basic feature upstream in Gnome-shell itself
 
@@ -50,7 +54,7 @@ Choose a method
 
       gnome-extensions prefs keyboard_modifiers_status@sneetsher
 
-- Preferences are accessible through CLI to using `gsettings` or if you prefer a wrapper `./scripts/gset` from this repo. Example:
+- Preferences are accessible through CLI to using `gsettings` or if you prefer a wrapper `./scripts/gset` from this repo see below example. For full option list check [GSettings Schemas](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml):
 
       ## at left within menu corner, last position
       ./scripts/gset set panel-side LEFT
