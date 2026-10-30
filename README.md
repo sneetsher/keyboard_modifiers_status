@@ -54,19 +54,19 @@ Choose a method
 
       gnome-extensions prefs keyboard_modifiers_status@sneetsher
 
-- Preferences are accessible through CLI to using `gsettings` or if you prefer a wrapper `./scripts/gset` from this repo see below example. For full option list check [GSettings Schemas](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml):
+- Preferences are accessible through CLI using `gsettings`, or with the repository wrapper `./scripts/gsettings-wrapper.sh`. For the full option list, check the [GSettings schema](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml):
 
-      ## at left within menu corner, last position
-      ./scripts/gset set panel-side LEFT
-      ./scripts/gset set indicator-order -1
+      # At left within menu corner, last position
+      ./scripts/gsettings-wrapper.sh set panel-side LEFT
+      ./scripts/gsettings-wrapper.sh set indicator-order -1
 
-      ## at center with date, first position
-      ./scripts/gset set panel-side CENTER
-      ./scripts/gset set indicator-order 0
+      # At center with date, first position
+      ./scripts/gsettings-wrapper.sh set panel-side CENTER
+      ./scripts/gsettings-wrapper.sh set indicator-order 0
 
-      ## list all, reset all to default including key symbols 
-      ./scripts/gset
-      ./scripts/gset reset-recursively
+      # List all settings; reset all to defaults, including key symbols
+      ./scripts/gsettings-wrapper.sh
+      ./scripts/gsettings-wrapper.sh reset-recursively
 
 ## Extras
 
@@ -80,5 +80,5 @@ Choose a method
 
 For anyone looking to modify it or creating alternative solution preferably  upstream in Gnome-shell itself. Check:
 - [HACKING.md](HACKING.md)
-- [labs/README.md](labs/README.md)
+- [Technology experiments](experiments/README.md)
 - Already known limitations, check open issues.
