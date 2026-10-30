@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# Exploratory GDK 3 modifier-state polling snippet.
 
 import gi
 gi.require_version('Gdk', '3.0')

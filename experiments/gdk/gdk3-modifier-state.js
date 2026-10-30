@@ -1,7 +1,6 @@
 #!/usr/bin/gjs
 
-// This script is only to test on non supported gnome shell version
-// or to help in debuging
+// Exploratory GDK 3 modifier-state polling snippet.
 
 const GLib = imports.gi.GLib;
 const Gtk = imports.gi.Gtk;
