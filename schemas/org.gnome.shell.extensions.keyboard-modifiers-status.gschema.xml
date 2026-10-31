@@ -89,6 +89,23 @@
 			<summary>Indicator Order</summary>
 			<description>Indicator order to other indicators on the panel box.</description>
 		</key>
+		<key name="overlay-enabled" type="b">
+			<default>false</default>
+			<summary>Desktop Overlay</summary>
+			<description>Show a draggable duplicate of the modifier indicator over windows.</description>
+		</key>
+		<key name="overlay-x" type="d">
+			<default>0.75</default>
+			<range min="0.0" max="1.0"/>
+			<summary>Desktop Overlay Horizontal Position</summary>
+			<description>Normalized horizontal position of the desktop overlay.</description>
+		</key>
+		<key name="overlay-y" type="d">
+			<default>0.35</default>
+			<range min="0.0" max="1.0"/>
+			<summary>Desktop Overlay Vertical Position</summary>
+			<description>Normalized vertical position of the desktop overlay.</description>
+		</key>
 
 	</schema>
 </schemalist>

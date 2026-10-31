@@ -2,3 +2,16 @@
     font-size: 18px;
     font-weight: bold;
 }
+
+.kms-desktop-overlay {
+    padding: 3px 7px;
+    background-color: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 6px;
+}
+
+.kms-desktop-overlay-label {
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: bold;
+}

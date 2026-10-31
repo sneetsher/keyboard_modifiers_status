@@ -112,6 +112,9 @@ export default class KMS extends Extension {
             }
         });
 
+        if (this._settings.get_boolean('overlay-enabled'))
+            this._createOverlay();
+
         this._register_indicator();
 
         //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
@@ -186,6 +189,7 @@ export default class KMS extends Extension {
             this._label = null;
             this._indicatorText = '';
         }
+        this._destroyOverlay();
         this._registeredPanelSide = null;
         this._registeredIndicatorOrder = null;
 
@@ -274,6 +278,16 @@ export default class KMS extends Extension {
                 this._indOrder = this._settings.get_int(key);
                 this._log_deferred_placement_change();
                 return;
+            case 'overlay-enabled':
+                if (this._settings.get_boolean(key))
+                    this._createOverlay();
+                else
+                    this._destroyOverlay();
+                return;
+            case 'overlay-x':
+            case 'overlay-y':
+                this._positionOverlayFromSettings();
+                return;
             default:
                 return;
         }
@@ -308,6 +322,142 @@ export default class KMS extends Extension {
             this._registeredIndicatorOrder !== this._indOrder) {
             console.debug(`${tag} Panel placement preference changed; disable and re-enable the extension to apply it`);
         }
+    }
+
+    _createOverlay() {
+        if (this._overlay)
+            return;
+
+        this._overlay = new St.Widget({
+            style_class: 'kms-desktop-overlay',
+            reactive: true,
+            can_focus: false,
+            track_hover: true,
+            layout_manager: new Clutter.BinLayout(),
+        });
+        this._overlay.accessible_name = _('Draggable modifier status overlay');
+        this._overlayLabel = new St.Label({
+            style_class: 'kms-desktop-overlay-label',
+            text: this._indicatorText,
+        });
+        this._overlay.add_child(this._overlayLabel);
+
+        this._overlay.connect('button-press-event', (_actor, event) => {
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+                return Clutter.EVENT_PROPAGATE;
+
+            const [pointerX, pointerY] = global.get_pointer();
+            this._overlayDragStart = {
+                pointerX,
+                pointerY,
+                x: this._overlay.x,
+                y: this._overlay.y,
+            };
+            return Clutter.EVENT_STOP;
+        });
+        this._overlay.connect('motion-event', () => {
+            if (!this._overlayDragStart)
+                return Clutter.EVENT_PROPAGATE;
+
+            const [pointerX, pointerY] = global.get_pointer();
+            this._setOverlayPosition(
+                this._overlayDragStart.x + pointerX - this._overlayDragStart.pointerX,
+                this._overlayDragStart.y + pointerY - this._overlayDragStart.pointerY
+            );
+            return Clutter.EVENT_STOP;
+        });
+        this._overlay.connect('button-release-event', (_actor, event) => {
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY || !this._overlayDragStart)
+                return Clutter.EVENT_PROPAGATE;
+
+            this._overlayDragStart = null;
+            this._saveOverlayPosition();
+            return Clutter.EVENT_STOP;
+        });
+
+        try {
+            Main.layoutManager.addChrome(this._overlay, {
+                affectsStruts: false,
+                trackFullscreen: false,
+            });
+        } catch (e) {
+            console.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
+            this._overlay.destroy();
+            this._overlay = null;
+            this._overlayLabel = null;
+            throw e;
+        }
+
+        this._overlayStageSizeId = global.stage.connect('notify::size', () => {
+            this._positionOverlayFromSettings();
+        });
+        this._positionOverlayFromSettings();
+        console.debug(`${tag} Created draggable desktop overlay`);
+    }
+
+    _destroyOverlay() {
+        if (this._overlayStageSizeId) {
+            global.stage.disconnect(this._overlayStageSizeId);
+            this._overlayStageSizeId = null;
+        }
+
+        if (this._overlay) {
+            Main.layoutManager.removeChrome(this._overlay);
+            this._overlay.destroy();
+            this._overlay = null;
+            this._overlayLabel = null;
+        }
+        this._overlayDragStart = null;
+    }
+
+    _overlaySize() {
+        const [minWidth, naturalWidth] = this._overlay.get_preferred_width(-1);
+        const [minHeight, naturalHeight] = this._overlay.get_preferred_height(-1);
+        return [
+            Math.max(this._overlay.width, minWidth, naturalWidth),
+            Math.max(this._overlay.height, minHeight, naturalHeight),
+        ];
+    }
+
+    _positionOverlayFromSettings() {
+        if (!this._overlay || !this._settings)
+            return;
+
+        const [width, height] = this._overlaySize();
+        const maxX = Math.max(0, global.stage.width - width);
+        const maxY = Math.max(0, global.stage.height - height);
+        this._setOverlayPosition(
+            this._settings.get_double('overlay-x') * maxX,
+            this._settings.get_double('overlay-y') * maxY
+        );
+    }
+
+    _setOverlayPosition(x, y) {
+        if (!this._overlay)
+            return;
+
+        const [width, height] = this._overlaySize();
+        const maxX = Math.max(0, global.stage.width - width);
+        const maxY = Math.max(0, global.stage.height - height);
+        this._overlay.set_position(
+            Math.min(Math.max(x, 0), maxX),
+            Math.min(Math.max(y, 0), maxY)
+        );
+    }
+
+    _saveOverlayPosition() {
+        if (!this._overlay || !this._settings)
+            return;
+
+        const [width, height] = this._overlaySize();
+        const maxX = Math.max(1, global.stage.width - width);
+        const maxY = Math.max(1, global.stage.height - height);
+        const x = this._overlay.x / maxX;
+        const y = this._overlay.y / maxY;
+        if (this._settings.get_double('overlay-x') !== x)
+            this._settings.set_double('overlay-x', x);
+        if (this._settings.get_double('overlay-y') !== y)
+            this._settings.set_double('overlay-y', y);
     }
 
 
@@ -360,6 +510,10 @@ export default class KMS extends Extension {
         this._indicatorText += this._symClosing;
 
         this._label.text = this._indicatorText;
+        if (this._overlayLabel) {
+            this._overlayLabel.text = this._indicatorText;
+            this._positionOverlayFromSettings();
+        }
 
         this._prev_state = this._state;
         this._prev_latch = this._latch;

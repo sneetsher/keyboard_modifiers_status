@@ -64,6 +64,7 @@ export default class Prefs extends ExtensionPreferences {
 			])
 		);
 		this._addPlacementGroup();
+		this._addOverlayGroup();
 
 		window.add(this._page);
 		window.show();
@@ -310,6 +311,37 @@ export default class Prefs extends ExtensionPreferences {
 				const value = this._settings.get_int('indicator-order');
 				if (order.get_value_as_int() !== value)
 					order.set_value(value);
+			}),
+		});
+
+		this._page.add(group);
+	}
+
+	_addOverlayGroup() {
+		const group = new Adw.PreferencesGroup({
+			title: _('Desktop overlay'),
+			description: _('Show a translucent, draggable copy of the modifier indicator over windows.'),
+		});
+		const overlayRow = new Adw.SwitchRow({
+			title: _('Show overlay'),
+			active: this._settings.get_boolean('overlay-enabled'),
+		});
+		group.add(overlayRow);
+
+		this._signalHandlers.push({
+			obj: overlayRow,
+			id: overlayRow.connect('notify::active', () => {
+				const active = overlayRow.active;
+				if (active !== this._settings.get_boolean('overlay-enabled'))
+					this._settings.set_boolean('overlay-enabled', active);
+			}),
+		});
+		this._signalHandlers.push({
+			obj: this._settings,
+			id: this._settings.connect('changed::overlay-enabled', () => {
+				const active = this._settings.get_boolean('overlay-enabled');
+				if (overlayRow.active !== active)
+					overlayRow.active = active;
 			}),
 		});
 
