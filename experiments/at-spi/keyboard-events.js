@@ -1,4 +1,4 @@
-// small script to test: modifiers
+// Exploratory AT-SPI keyboard and mouse event listener.
 // using: gjs, atspi, x11, wayland
 
 const Atspi = imports.gi.Atspi;

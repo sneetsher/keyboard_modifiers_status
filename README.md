@@ -1,84 +1,63 @@
-# Keyboard Modifiers Status - Gnome-Shell Extension
+# Keyboard Modifiers Status
 
- A Gnome-Shell extension that shows keyboard modifiers status. It is more useful when accessibility feature - sticky keys is active. 
+A GNOME Shell extension that displays active keyboard modifiers in the top panel. It is especially useful with Sticky Keys, showing modifiers that are active, latched, or locked.
 
-## Features
+## What it shows
 
- - Indicates status of all modifiers supported by GNU/Linux (8bits): Shift, Caps, Control, Alt, AltGr, Meta/Cmd/Win, Num, Scroll.
- - Shows all states not just effective: (Off, Active, Latched, Locked) in Wayland; (Off, Active) in Xorg session but it was dropped from Gnome-shell 49 and later.
- - Customizable symbol for each key, which allows to display just selected ones.
- - Customizable display location on Gnome-shell top bar (through CLI or any gsettings editor): left|center|right x first|..|last
+- Shift, Caps Lock, Control, Alt, Num Lock, Scroll Lock, Super, and AltGr.
+- Active, latched, and locked states where GNOME Shell and the session expose them. Xorg support is limited; the previous Xorg modifier-state API was dropped from GNOME Shell 49.
+- Custom symbols and wrappers, with controls for which symbols are displayed.
+- A configurable panel location and indicator order.
 
-### Some alternatives and some still coming
-| Year | Repo | Display | Key | Feature |
-|:---|:---|:---|:---|:---|
-| 2011-... | https://github.com/kazysmaster/gnome-shell-extension-lockkeys | EXT(Topbar) | Num,Caps | (show effective; click to set) |
-| 2015-... | this | EXT(Topbar) | Shift,Caps,Control,Alt,AltGr,Meta,Num,Scroll | (show effective,latch,lock) |
-| 2016-2018 | https://github.com/caasiu/gnome-shell-extension-KeysIndicator | EXT(Topbar) | Ctrl,Shift,Alt,Caps,Num | (show effective) |
-| 2021 | https://github.com/marf41/stickind | CLI(XKB) | Shift,Ctrl,Alt,AltGr,Win | (show effective,latch,lock) |
-| 2025-... | https://github.com/tomasmark79/kbd-informer/ | EXT(Topbar+Notify) | Shift,Caps,Control,Alt,AltGr,Meta,Num,Scroll | (show effective,latch,lock) |
+## Compatibility and support
 
-- Search extension portal for: "lock key" ...
-  
-## Let's not forget top objective to fix such basic feature upstream in Gnome-shell itself
+The extension metadata lists GNOME Shell versions 45 through 51. The available modifier-state details can vary by Shell version, display backend, and accessibility support. The extension supports the `user` and `unlock-dialog` session modes; it is not configured for the login screen.
 
-If you know someone with good knowledge of Gnome technologies and wanting to give it a try. At least to triage the bug report and give feedback about related Gnome structures, libs and instructions for any developer to take it. 
+This is an extension-level solution to a feature that would be more appropriately provided by GNOME Shell itself. See the [upstream GNOME Shell issue](https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/4706).
 
-- Here is the related Bug Report: https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/4706
+## Install and enable
 
-## Install
+Install from the [GNOME Extensions page](https://extensions.gnome.org/extension/975/keyboard-modifiers-status/) or install a locally packed copy:
 
-Choose a method
+```sh
+gnome-extensions pack
+gnome-extensions install keyboard_modifiers_status@*.zip
+```
 
-- Simply, from Gnome extensions portal site
+Then log out and back in, and enable the extension:
 
-    https://extensions.gnome.org/extension/975/keyboard-modifiers-status/
-
-- Manually
-
-    1. Download source archive and extract it or clone repo.
-    2. Install with:
-
-           gnome-extensions pack
-           gnome-extensions install keyboard_modifiers_status@*.zip
-    
-    3. Logout/login.
-    4. Enable it:
-
-           gnome-extensions enable keyboard_modifiers_status@sneetsher
+```sh
+gnome-extensions enable keyboard_modifiers_status@sneetsher
+```
 
 ## Preferences
 
-- The preferences window allows customizing modifier mappings and display symbols.
-  Symbols can be adjusted individually, loaded from presets or saved as a custom preset.
+Open the preferences window:
 
-      gnome-extensions prefs keyboard_modifiers_status@sneetsher
+```sh
+gnome-extensions prefs keyboard_modifiers_status@sneetsher
+```
 
-- Preferences are accessible through CLI to using `gsettings` or if you prefer a wrapper `./scripts/gset` from this repo see below example. For full option list check [GSettings Schemas](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml):
+Use the preferences to change modifier symbols, choose presets or save custom symbols, and adjust panel placement. Settings are also available through `gsettings` or the repository helper `./scripts/gsettings-wrapper.sh`. The full key list and defaults are in the [GSettings schema](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml).
 
-      ## at left within menu corner, last position
-      ./scripts/gset set panel-side LEFT
-      ./scripts/gset set indicator-order -1
+For example, place the indicator at the end of the left panel section:
 
-      ## at center with date, first position
-      ./scripts/gset set panel-side CENTER
-      ./scripts/gset set indicator-order 0
+```sh
+./scripts/gsettings-wrapper.sh set panel-side LEFT
+./scripts/gsettings-wrapper.sh set indicator-order -1
+```
 
-      ## list all, reset all to default including key symbols 
-      ./scripts/gset
-      ./scripts/gset reset-recursively
+To list all settings or reset them to their defaults:
 
-## Extras
+```sh
+./scripts/gsettings-wrapper.sh
+./scripts/gsettings-wrapper.sh reset-recursively
+```
 
-- KMS extension is enabled by default in `user`|`lock` session. `login` session require superuser system install, change login manager configuration, probably approval request by developer through gnome extension portal.
-- To enable an extension for all users (machine-wide: `user`|`lock` session for all users), Just gsettings/dconf override/lock of enabled extensions to force it Or just change default only (individual users can disable it) 
+## Accessibility and limitations
 
-    See https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en
+Sticky Keys can make latched and locked modifier states visible; availability depends on the active GNOME Shell session and modifier-state APIs. The extension is enabled in the normal user and unlock-dialog modes. System-wide or login-screen deployment is not covered by the standard extension install; consult the [GNOME system administrator guide](https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en) for managed extension settings.
 
+## For developers
 
-## Developer hints
-
-For anyone looking to modify it or creating alternative solution preferably  upstream in Gnome-shell itself. Check:
-- [HACKING.md](HACKING.md)
-- [labs/README.md](labs/README.md)
-- Already known limitations, check open issues.
+See [HACKING.md](HACKING.md) for debugging and packaging, and [experiments/README.md](experiments/README.md) for standalone API experiments. These snippets are exploratory tools, not end-user tests.

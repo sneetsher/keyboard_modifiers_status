@@ -1,5 +1,6 @@
 /*
- * compiling: gcc `pkg-config --cflags gtk+-3.0` -o test_c_gtk_modifiers test_c_gtk_modifiers.c `pkg-config --libs gtk+-3.0`
+ * Exploratory GTK 3 modifier-state polling snippet.
+ * Compile with: make build-experiments
  */
 
 #include <gtk/gtk.h>

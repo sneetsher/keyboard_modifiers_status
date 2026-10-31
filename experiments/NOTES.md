@@ -1,4 +1,4 @@
-# A11y: Exploring modifiers sources
+# Reference notes: modifier-state APIs
 
 Some interesting pointer related to modifiers state, latch & lock for developing the extension
 

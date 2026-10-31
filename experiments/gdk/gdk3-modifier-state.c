@@ -1,5 +1,6 @@
 /*
- * compiling: gcc `pkg-config --cflags gdk-3.0` -o test_c_gdk_modifiers test_c_gdk_modifiers.c `pkg-config --libs gdk-3.0`
+ * Exploratory GDK 3 modifier-state polling snippet.
+ * Compile with: make build-experiments
  */
 
 #include <gdk/gdk.h>
