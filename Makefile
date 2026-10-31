@@ -1,31 +1,29 @@
 default:
 	@echo Help:
+	@echo make dist
 	@echo make install
 	@echo make debug
-	@echo make dist
-	@echo make clean
 	@echo make build-experiments
+	@echo make clean
+
+
+dist:
+	gnome-extensions pack --force
+
+pack: dist
+
+install: dist
+	gnome-extensions install keyboard_modifiers_status@*.shell-extension.zip --force
+
+debug:
+	journalctl -f -o cat /usr/bin/gnome-shell
 
 build-experiments:
 	gcc `pkg-config --cflags gdk-3.0` -o experiments/gdk/gdk3-modifier-state experiments/gdk/gdk3-modifier-state.c `pkg-config --libs gdk-3.0`
 	gcc `pkg-config --cflags gtk+-3.0` -o experiments/gtk/gtk3-modifier-state experiments/gtk/gtk3-modifier-state.c `pkg-config --libs gtk+-3.0`
 
-install:
-	mkdir -p ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/
-	cp ./*.js* ./*.css ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/
-	mkdir -p ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/schemas
-	cp schemas/*.gschema.xml ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/schemas
-	glib-compile-schemas ~/.local/share/gnome-shell/extensions/keyboard_modifiers_status@sneetsher/schemas
-
-clean: dist-clean
+clean:
 	rm -f experiments/gdk/gdk3-modifier-state experiments/gtk/gtk3-modifier-state
-
-dist-clean:
-	rm package/keyboard_modifiers_status@sneetsher.zip || echo skipped
-
-dist: dist-clean
-	mkdir -p package
-	zip -r package/keyboard_modifiers_status@sneetsher.zip ./*.js* ./*.css schemas
 
 experiment-gdk3-gjs:
 	gjs ./experiments/gdk/gdk3-modifier-state.js
@@ -44,7 +42,3 @@ run-gdk3-c-experiment: build-experiments
 
 run-gtk3-c-experiment: build-experiments
 	./experiments/gtk/gtk3-modifier-state
-
-
-debug:
-	journalctl -f -o cat /usr/bin/gnome-shell
