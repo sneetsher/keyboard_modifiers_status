@@ -38,7 +38,7 @@ Open the preferences window:
 gnome-extensions prefs keyboard_modifiers_status@sneetsher
 ```
 
-Use the preferences to change modifier symbols, choose presets or save custom symbols, and adjust panel placement. Settings are also available through `gsettings` or the repository helper `./scripts/gsettings-wrapper.sh`. The full key list and defaults are in the [GSettings schema](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml).
+Use the preferences to change modifier symbols, choose presets or save custom symbols, adjust panel placement, and optionally show a translucent desktop overlay. Drag the overlay to move it; its position is saved across sessions. Symbol changes apply immediately; changes to panel side or indicator order apply after disabling and re-enabling the extension. Settings are also available through `gsettings` or the repository helper `./scripts/gsettings-wrapper.sh`. The full key list and defaults are in the [GSettings schema](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml).
 
 For example, place the indicator at the end of the left panel section:
 
@@ -56,7 +56,7 @@ To list all settings or reset them to their defaults:
 
 ## Accessibility and limitations
 
-Sticky Keys can make latched and locked modifier states visible; availability depends on the active GNOME Shell session and modifier-state APIs. The extension is enabled in the normal user and unlock-dialog modes. System-wide or login-screen deployment is not covered by the standard extension install; consult the [GNOME system administrator guide](https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en) for managed extension settings.
+Sticky Keys can make latched and locked modifier states visible; availability depends on the active GNOME Shell session and modifier-state APIs. GNOME's “separate input sources for each window” setting remembers each window's keyboard layout/input source, but does not provide a separate modifier-state snapshot per window. This extension therefore displays the current seat/compositor modifier state; its panel indicator and optional desktop overlay cannot show a different Caps Lock or modifier state for each window. Supporting per-window modifier state requires a GNOME Shell/Mutter API that exposes such state. The extension is enabled in the normal user and unlock-dialog modes. System-wide or login-screen deployment is not covered by the standard extension install; consult the [GNOME system administrator guide](https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en) for managed extension settings.
 
 ## For developers
 

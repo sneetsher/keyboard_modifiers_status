@@ -24,6 +24,7 @@ import Clutter from 'gi://Clutter';
 // Modifier and wrapper symbols are configurable through GSettings and the provided preferences dialog.
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import GLib from 'gi://GLib';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -86,19 +87,17 @@ export default class KMS extends Extension {
 
         this._panSide = 2;
         this._indOrder = 0;
-        this._panSideActive = -1;
-        this._indOrderActive = -1;
+        this._registeredPanelSide = null;
+        this._registeredIndicatorOrder = null;
 
         // Create the indicator displayed in the top panel.
-        this._indicator = new St.Bin({ style_class: 'panel-button',
-            reactive: false,
-            can_focus: false,
-            x_expand: true,
-            y_expand: false,
-            track_hover: false });
+        this._indicator = new PanelMenu.Button(0.0, this.metadata.name, true);
+        this._indicator.reactive = false;
+        this._indicator.can_focus = false;
+        this._indicator.track_hover = false;
         this._indicatorText = '';
         this._label = new St.Label({ style_class: 'state-label', text: this._indicatorText });
-        this._indicator.set_child(this._label);
+        this._indicator.add_child(this._label);
 
         // GSettings object for retrieving user preferences.
         this._settings = this.getSettings();
@@ -113,7 +112,10 @@ export default class KMS extends Extension {
             }
         });
 
-        this._insert_indicator();
+        if (this._settings.get_boolean('overlay-enabled'))
+            this._createOverlay();
+
+        this._register_indicator();
 
         //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
@@ -182,17 +184,14 @@ export default class KMS extends Extension {
         };
 
         if (this._indicator) {
-            
-            this._remove_indicator();
-            this._panSide = null;
-            this._indOrder = null;
-
-            this._indicator.destroy_all_children();
             this._indicator.destroy();
             this._indicator = null;
             this._label = null;
             this._indicatorText = '';
         }
+        this._destroyOverlay();
+        this._registeredPanelSide = null;
+        this._registeredIndicatorOrder = null;
 
         if (this._settings) {
             if (this._settingsChangedId) {
@@ -273,11 +272,21 @@ export default class KMS extends Extension {
                 break;
             case 'panel-side':
                 this._panSide = this._settings.get_enum(key);
-                this._reposition_indicator();
+                this._log_deferred_placement_change();
                 return;
             case 'indicator-order':
                 this._indOrder = this._settings.get_int(key);
-                this._reposition_indicator();
+                this._log_deferred_placement_change();
+                return;
+            case 'overlay-enabled':
+                if (this._settings.get_boolean(key))
+                    this._createOverlay();
+                else
+                    this._destroyOverlay();
+                return;
+            case 'overlay-x':
+            case 'overlay-y':
+                this._positionOverlayFromSettings();
                 return;
             default:
                 return;
@@ -286,58 +295,169 @@ export default class KMS extends Extension {
         this._refreshIndicator(true);
     }
 
-    _reposition_indicator() {
-        if (this._panSideActive !== this._panSide || this._indOrderActive !== this._indOrder) {
-            this._remove_indicator();
-            this._insert_indicator();
+    _register_indicator() {
+        const panelBox = ['left', 'center', 'right'][this._panSide] ?? 'right';
+        try {
+            Main.panel.addToStatusArea(
+                this.uuid,
+                this._indicator,
+                this._indOrder,
+                panelBox
+            );
+        } catch (e) {
+            console.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
+            this._indicator.destroy();
+            this._indicator = null;
+            this._label = null;
+            throw e;
+        }
+
+        this._registeredPanelSide = this._panSide;
+        this._registeredIndicatorOrder = this._indOrder;
+        console.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
+    }
+
+    _log_deferred_placement_change() {
+        if (this._registeredPanelSide !== this._panSide ||
+            this._registeredIndicatorOrder !== this._indOrder) {
+            console.debug(`${tag} Panel placement preference changed; disable and re-enable the extension to apply it`);
         }
     }
 
+    _createOverlay() {
+        if (this._overlay)
+            return;
 
-    _insert_indicator() {
-        if (this._panSideActive == -1) {
-            try {
-                switch (this._panSide) {
-                    case 0:
-                        Main.panel._leftBox.insert_child_at_index(this._indicator, this._indOrder);
-                        break;
-                    case 1:
-                        Main.panel._centerBox.insert_child_at_index(this._indicator, this._indOrder);
-                        break;
-                    default:
-                        Main.panel._rightBox.insert_child_at_index(this._indicator, this._indOrder);
-                }
-            } catch (e) {
-                console.error(`${tag} Failed to insert indicator at panel side ${this._panSide}, order ${this._indOrder}: ${e.message}`);
-                throw e;
-            }
-            this._panSideActive = this._panSide;
-            this._indOrderActive = this._indOrder;
-            console.debug(`${tag} Inserted indicator at panel side ${this._panSide}, order ${this._indOrder}`);
-        };
+        this._overlay = new St.Widget({
+            style_class: 'kms-desktop-overlay',
+            reactive: true,
+            can_focus: false,
+            track_hover: true,
+            layout_manager: new Clutter.BinLayout(),
+        });
+        this._overlay.accessible_name = _('Draggable modifier status overlay');
+        this._overlayLabel = new St.Label({
+            style_class: 'kms-desktop-overlay-label',
+            text: this._indicatorText,
+        });
+        this._overlay.add_child(this._overlayLabel);
+
+        this._overlay.connect('button-press-event', (_actor, event) => {
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+                return Clutter.EVENT_PROPAGATE;
+
+            const [pointerX, pointerY] = global.get_pointer();
+            this._overlayDragStart = {
+                pointerX,
+                pointerY,
+                x: this._overlay.x,
+                y: this._overlay.y,
+            };
+            return Clutter.EVENT_STOP;
+        });
+        this._overlay.connect('motion-event', () => {
+            if (!this._overlayDragStart)
+                return Clutter.EVENT_PROPAGATE;
+
+            const [pointerX, pointerY] = global.get_pointer();
+            this._setOverlayPosition(
+                this._overlayDragStart.x + pointerX - this._overlayDragStart.pointerX,
+                this._overlayDragStart.y + pointerY - this._overlayDragStart.pointerY
+            );
+            return Clutter.EVENT_STOP;
+        });
+        this._overlay.connect('button-release-event', (_actor, event) => {
+            if (event.get_button() !== Clutter.BUTTON_PRIMARY || !this._overlayDragStart)
+                return Clutter.EVENT_PROPAGATE;
+
+            this._overlayDragStart = null;
+            this._saveOverlayPosition();
+            return Clutter.EVENT_STOP;
+        });
+
+        try {
+            Main.layoutManager.addChrome(this._overlay, {
+                affectsStruts: false,
+                trackFullscreen: false,
+            });
+        } catch (e) {
+            console.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
+            this._overlay.destroy();
+            this._overlay = null;
+            this._overlayLabel = null;
+            throw e;
+        }
+
+        this._overlayStageSizeId = global.stage.connect('notify::size', () => {
+            this._positionOverlayFromSettings();
+        });
+        this._positionOverlayFromSettings();
+        console.debug(`${tag} Created draggable desktop overlay`);
     }
 
-    _remove_indicator() {
-        if (this._panSideActive != -1) {
-            try {
-                switch (this._panSideActive) {
-                    case 0:
-                        Main.panel._leftBox.remove_child(this._indicator);
-                        break;
-                    case 1:
-                        Main.panel._centerBox.remove_child(this._indicator);
-                        break;
-                    default:
-                        Main.panel._rightBox.remove_child(this._indicator);
-                }
-            } catch (e) {
-                console.error(`${tag} Failed to remove indicator from panel side ${this._panSideActive}: ${e.message}`);
-                throw e;
-            }
-            this._panSideActive = -1;
-            this._indOrderActive = -1;
-            console.debug(`${tag} Removed indicator from panel`);
-        };
+    _destroyOverlay() {
+        if (this._overlayStageSizeId) {
+            global.stage.disconnect(this._overlayStageSizeId);
+            this._overlayStageSizeId = null;
+        }
+
+        if (this._overlay) {
+            Main.layoutManager.removeChrome(this._overlay);
+            this._overlay.destroy();
+            this._overlay = null;
+            this._overlayLabel = null;
+        }
+        this._overlayDragStart = null;
+    }
+
+    _overlaySize() {
+        const [minWidth, naturalWidth] = this._overlay.get_preferred_width(-1);
+        const [minHeight, naturalHeight] = this._overlay.get_preferred_height(-1);
+        return [
+            Math.max(this._overlay.width, minWidth, naturalWidth),
+            Math.max(this._overlay.height, minHeight, naturalHeight),
+        ];
+    }
+
+    _positionOverlayFromSettings() {
+        if (!this._overlay || !this._settings)
+            return;
+
+        const [width, height] = this._overlaySize();
+        const maxX = Math.max(0, global.stage.width - width);
+        const maxY = Math.max(0, global.stage.height - height);
+        this._setOverlayPosition(
+            this._settings.get_double('overlay-x') * maxX,
+            this._settings.get_double('overlay-y') * maxY
+        );
+    }
+
+    _setOverlayPosition(x, y) {
+        if (!this._overlay)
+            return;
+
+        const [width, height] = this._overlaySize();
+        const maxX = Math.max(0, global.stage.width - width);
+        const maxY = Math.max(0, global.stage.height - height);
+        this._overlay.set_position(
+            Math.min(Math.max(x, 0), maxX),
+            Math.min(Math.max(y, 0), maxY)
+        );
+    }
+
+    _saveOverlayPosition() {
+        if (!this._overlay || !this._settings)
+            return;
+
+        const [width, height] = this._overlaySize();
+        const maxX = Math.max(1, global.stage.width - width);
+        const maxY = Math.max(1, global.stage.height - height);
+        const x = this._overlay.x / maxX;
+        const y = this._overlay.y / maxY;
+        if (this._settings.get_double('overlay-x') !== x)
+            this._settings.set_double('overlay-x', x);
+        if (this._settings.get_double('overlay-y') !== y)
+            this._settings.set_double('overlay-y', y);
     }
 
 
@@ -390,6 +510,10 @@ export default class KMS extends Extension {
         this._indicatorText += this._symClosing;
 
         this._label.text = this._indicatorText;
+        if (this._overlayLabel) {
+            this._overlayLabel.text = this._indicatorText;
+            this._positionOverlayFromSettings();
+        }
 
         this._prev_state = this._state;
         this._prev_latch = this._latch;
