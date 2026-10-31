@@ -56,7 +56,7 @@ To list all settings or reset them to their defaults:
 
 ## Accessibility and limitations
 
-Sticky Keys can make latched and locked modifier states visible; availability depends on the active GNOME Shell session and modifier-state APIs. The extension is enabled in the normal user and unlock-dialog modes. System-wide or login-screen deployment is not covered by the standard extension install; consult the [GNOME system administrator guide](https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en) for managed extension settings.
+Sticky Keys can make latched and locked modifier states visible; availability depends on the active GNOME Shell session and modifier-state APIs. GNOME's “separate input sources for each window” setting remembers each window's keyboard layout/input source, but does not provide a separate modifier-state snapshot per window. This extension therefore displays the current seat/compositor modifier state; its panel indicator and optional desktop overlay cannot show a different Caps Lock or modifier state for each window. Supporting per-window modifier state requires a GNOME Shell/Mutter API that exposes such state. The extension is enabled in the normal user and unlock-dialog modes. System-wide or login-screen deployment is not covered by the standard extension install; consult the [GNOME system administrator guide](https://help.gnome.org/admin/system-admin-guide/stable/extensions-enable.html.en) for managed extension settings.
 
 ## For developers
 
