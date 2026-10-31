@@ -63,6 +63,7 @@ export default class Prefs extends ExtensionPreferences {
 				[_('Brackets'),  ['', '[', ']']],
 			])
 		);
+		this._addPlacementGroup();
 
 		window.add(this._page);
 		window.show();
@@ -256,6 +257,63 @@ export default class Prefs extends ExtensionPreferences {
 
 		this._page.add(group);
 		console.debug(`${tag} _addGroup() ... out`);
+	}
+
+	_addPlacementGroup() {
+		const group = new Adw.PreferencesGroup({
+			title: _('Panel placement'),
+			description: _('Changes to panel placement apply after disabling and re-enabling the extension.'),
+		});
+
+		const panelSide = new Adw.ComboRow({
+			title: _('Panel position'),
+			model: Gtk.StringList.new([_('Left'), _('Center'), _('Right')]),
+			selected: this._settings.get_enum('panel-side'),
+		});
+		group.add(panelSide);
+
+		const panelSideSelectedId = panelSide.connect('notify::selected', () => {
+			const side = panelSide.selected;
+			if (side >= 0 && side <= 2 && side !== this._settings.get_enum('panel-side'))
+				this._settings.set_enum('panel-side', side);
+		});
+		this._signalHandlers.push({obj: panelSide, id: panelSideSelectedId});
+		this._signalHandlers.push({
+			obj: this._settings,
+			id: this._settings.connect('changed::panel-side', () => {
+				const side = this._settings.get_enum('panel-side');
+				if (panelSide.selected !== side)
+					panelSide.selected = side;
+			}),
+		});
+
+		const order = Gtk.SpinButton.new_with_range(-1, 100, 1);
+		order.set_numeric(true);
+		order.set_value(this._settings.get_int('indicator-order'));
+		const orderRow = new Adw.ActionRow({
+			title: _('Indicator order'),
+			subtitle: _('Lower values appear earlier; -1 places the indicator at the end.'),
+		});
+		orderRow.add_suffix(order);
+		orderRow.activatable_widget = order;
+		group.add(orderRow);
+
+		const orderChangedId = order.connect('value-changed', () => {
+			const value = order.get_value_as_int();
+			if (value !== this._settings.get_int('indicator-order'))
+				this._settings.set_int('indicator-order', value);
+		});
+		this._signalHandlers.push({obj: order, id: orderChangedId});
+		this._signalHandlers.push({
+			obj: this._settings,
+			id: this._settings.connect('changed::indicator-order', () => {
+				const value = this._settings.get_int('indicator-order');
+				if (order.get_value_as_int() !== value)
+					order.set_value(value);
+			}),
+		});
+
+		this._page.add(group);
 	}
 
 	// Create and show an dialog with custom and saved symbols overview and ask if cancel, save & switch or switch without saving.
