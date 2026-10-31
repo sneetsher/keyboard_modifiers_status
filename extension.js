@@ -24,6 +24,7 @@ import Clutter from 'gi://Clutter';
 // Modifier and wrapper symbols are configurable through GSettings and the provided preferences dialog.
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import GLib from 'gi://GLib';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -86,19 +87,17 @@ export default class KMS extends Extension {
 
         this._panSide = 2;
         this._indOrder = 0;
-        this._panSideActive = -1;
-        this._indOrderActive = -1;
+        this._registeredPanelSide = null;
+        this._registeredIndicatorOrder = null;
 
         // Create the indicator displayed in the top panel.
-        this._indicator = new St.Bin({ style_class: 'panel-button',
-            reactive: false,
-            can_focus: false,
-            x_expand: true,
-            y_expand: false,
-            track_hover: false });
+        this._indicator = new PanelMenu.Button(0.0, this.metadata.name, true);
+        this._indicator.reactive = false;
+        this._indicator.can_focus = false;
+        this._indicator.track_hover = false;
         this._indicatorText = '';
         this._label = new St.Label({ style_class: 'state-label', text: this._indicatorText });
-        this._indicator.set_child(this._label);
+        this._indicator.add_child(this._label);
 
         // GSettings object for retrieving user preferences.
         this._settings = this.getSettings();
@@ -113,7 +112,7 @@ export default class KMS extends Extension {
             }
         });
 
-        this._insert_indicator();
+        this._register_indicator();
 
         //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
@@ -182,17 +181,13 @@ export default class KMS extends Extension {
         };
 
         if (this._indicator) {
-            
-            this._remove_indicator();
-            this._panSide = null;
-            this._indOrder = null;
-
-            this._indicator.destroy_all_children();
             this._indicator.destroy();
             this._indicator = null;
             this._label = null;
             this._indicatorText = '';
         }
+        this._registeredPanelSide = null;
+        this._registeredIndicatorOrder = null;
 
         if (this._settings) {
             if (this._settingsChangedId) {
@@ -273,11 +268,11 @@ export default class KMS extends Extension {
                 break;
             case 'panel-side':
                 this._panSide = this._settings.get_enum(key);
-                this._reposition_indicator();
+                this._log_deferred_placement_change();
                 return;
             case 'indicator-order':
                 this._indOrder = this._settings.get_int(key);
-                this._reposition_indicator();
+                this._log_deferred_placement_change();
                 return;
             default:
                 return;
@@ -286,58 +281,33 @@ export default class KMS extends Extension {
         this._refreshIndicator(true);
     }
 
-    _reposition_indicator() {
-        if (this._panSideActive !== this._panSide || this._indOrderActive !== this._indOrder) {
-            this._remove_indicator();
-            this._insert_indicator();
+    _register_indicator() {
+        const panelBox = ['left', 'center', 'right'][this._panSide] ?? 'right';
+        try {
+            Main.panel.addToStatusArea(
+                this.uuid,
+                this._indicator,
+                this._indOrder,
+                panelBox
+            );
+        } catch (e) {
+            console.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
+            this._indicator.destroy();
+            this._indicator = null;
+            this._label = null;
+            throw e;
         }
+
+        this._registeredPanelSide = this._panSide;
+        this._registeredIndicatorOrder = this._indOrder;
+        console.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
     }
 
-
-    _insert_indicator() {
-        if (this._panSideActive == -1) {
-            try {
-                switch (this._panSide) {
-                    case 0:
-                        Main.panel._leftBox.insert_child_at_index(this._indicator, this._indOrder);
-                        break;
-                    case 1:
-                        Main.panel._centerBox.insert_child_at_index(this._indicator, this._indOrder);
-                        break;
-                    default:
-                        Main.panel._rightBox.insert_child_at_index(this._indicator, this._indOrder);
-                }
-            } catch (e) {
-                console.error(`${tag} Failed to insert indicator at panel side ${this._panSide}, order ${this._indOrder}: ${e.message}`);
-                throw e;
-            }
-            this._panSideActive = this._panSide;
-            this._indOrderActive = this._indOrder;
-            console.debug(`${tag} Inserted indicator at panel side ${this._panSide}, order ${this._indOrder}`);
-        };
-    }
-
-    _remove_indicator() {
-        if (this._panSideActive != -1) {
-            try {
-                switch (this._panSideActive) {
-                    case 0:
-                        Main.panel._leftBox.remove_child(this._indicator);
-                        break;
-                    case 1:
-                        Main.panel._centerBox.remove_child(this._indicator);
-                        break;
-                    default:
-                        Main.panel._rightBox.remove_child(this._indicator);
-                }
-            } catch (e) {
-                console.error(`${tag} Failed to remove indicator from panel side ${this._panSideActive}: ${e.message}`);
-                throw e;
-            }
-            this._panSideActive = -1;
-            this._indOrderActive = -1;
-            console.debug(`${tag} Removed indicator from panel`);
-        };
+    _log_deferred_placement_change() {
+        if (this._registeredPanelSide !== this._panSide ||
+            this._registeredIndicatorOrder !== this._indOrder) {
+            console.debug(`${tag} Panel placement preference changed; disable and re-enable the extension to apply it`);
+        }
     }
 
 
