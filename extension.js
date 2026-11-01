@@ -278,6 +278,10 @@ export default class KMS extends Extension {
                 this._indOrder = this._settings.get_int(key);
                 this._log_deferred_placement_change();
                 return;
+            case 'panel-indicator-enabled':
+                if (this._indicator)
+                    this._indicator.visible = this._settings.get_boolean(key);
+                return;
             case 'overlay-enabled':
                 if (this._settings.get_boolean(key))
                     this._createOverlay();
@@ -312,6 +316,7 @@ export default class KMS extends Extension {
             throw e;
         }
 
+        this._indicator.visible = this._settings.get_boolean('panel-indicator-enabled');
         this._registeredPanelSide = this._panSide;
         this._registeredIndicatorOrder = this._indOrder;
         console.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
