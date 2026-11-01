@@ -358,25 +358,8 @@ export default class KMS extends Extension {
                 x: this._overlay.x,
                 y: this._overlay.y,
             };
-            return Clutter.EVENT_STOP;
-        });
-        this._overlay.connect('motion-event', () => {
-            if (!this._overlayDragStart)
-                return Clutter.EVENT_PROPAGATE;
-
-            const [pointerX, pointerY] = global.get_pointer();
-            this._setOverlayPosition(
-                this._overlayDragStart.x + pointerX - this._overlayDragStart.pointerX,
-                this._overlayDragStart.y + pointerY - this._overlayDragStart.pointerY
-            );
-            return Clutter.EVENT_STOP;
-        });
-        this._overlay.connect('button-release-event', (_actor, event) => {
-            if (event.get_button() !== Clutter.BUTTON_PRIMARY || !this._overlayDragStart)
-                return Clutter.EVENT_PROPAGATE;
-
-            this._overlayDragStart = null;
-            this._saveOverlayPosition();
+            this._overlayDragEventId = global.stage.connect('captured-event', (_stage, capturedEvent) =>
+                this._handleOverlayDragEvent(capturedEvent));
             return Clutter.EVENT_STOP;
         });
 
@@ -400,7 +383,38 @@ export default class KMS extends Extension {
         console.debug(`${tag} Created draggable desktop overlay`);
     }
 
+    _handleOverlayDragEvent(event) {
+        if (!this._overlayDragStart)
+            return Clutter.EVENT_PROPAGATE;
+
+        if (event.type() === Clutter.EventType.MOTION) {
+            const [pointerX, pointerY] = global.get_pointer();
+            this._setOverlayPosition(
+                this._overlayDragStart.x + pointerX - this._overlayDragStart.pointerX,
+                this._overlayDragStart.y + pointerY - this._overlayDragStart.pointerY
+            );
+            return Clutter.EVENT_STOP;
+        }
+
+        if (event.type() === Clutter.EventType.BUTTON_RELEASE &&
+            event.get_button() === Clutter.BUTTON_PRIMARY) {
+            this._overlayDragStart = null;
+            this._saveOverlayPosition();
+            global.stage.disconnect(this._overlayDragEventId);
+            this._overlayDragEventId = null;
+            return Clutter.EVENT_STOP;
+        }
+
+        return Clutter.EVENT_PROPAGATE;
+    }
+
     _destroyOverlay() {
+        if (this._overlayDragEventId) {
+            global.stage.disconnect(this._overlayDragEventId);
+            this._overlayDragEventId = null;
+        }
+        this._overlayDragStart = null;
+
         if (this._overlayStageSizeId) {
             global.stage.disconnect(this._overlayStageSizeId);
             this._overlayStageSizeId = null;
@@ -412,7 +426,6 @@ export default class KMS extends Extension {
             this._overlay = null;
             this._overlayLabel = null;
         }
-        this._overlayDragStart = null;
     }
 
     _overlaySize() {
@@ -441,9 +454,8 @@ export default class KMS extends Extension {
         if (!this._overlay)
             return;
 
-        const [width, height] = this._overlaySize();
-        const maxX = Math.max(0, global.stage.width - width);
-        const maxY = Math.max(0, global.stage.height - height);
+        const maxX = Math.max(0, global.stage.width - this._overlay.width);
+        const maxY = Math.max(0, global.stage.height - this._overlay.height);
         this._overlay.set_position(
             Math.min(Math.max(x, 0), maxX),
             Math.min(Math.max(y, 0), maxY)
