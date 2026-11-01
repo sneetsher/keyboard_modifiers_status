@@ -63,7 +63,7 @@ export default class Prefs extends ExtensionPreferences {
 				[_('Brackets'),  ['', '[', ']']],
 			])
 		);
-		this._addPlacementGroup();
+		this._addPanelIndicatorGroup();
 		this._addOverlayGroup();
 
 		window.add(this._page);
@@ -260,10 +260,33 @@ export default class Prefs extends ExtensionPreferences {
 		console.debug(`${tag} _addGroup() ... out`);
 	}
 
-	_addPlacementGroup() {
+	_addPanelIndicatorGroup() {
 		const group = new Adw.PreferencesGroup({
-			title: _('Panel placement'),
-			description: _('Changes to panel placement apply after disabling and re-enabling the extension.'),
+			title: _('Panel indicator'),
+			description: _('Show or hide the panel indicator. Changes to its position and order apply after disabling and re-enabling the extension.'),
+		});
+
+		const showPanelIndicator = new Adw.SwitchRow({
+			title: _('Show panel indicator'),
+			active: this._settings.get_boolean('panel-indicator-enabled'),
+		});
+		group.add(showPanelIndicator);
+
+		this._signalHandlers.push({
+			obj: showPanelIndicator,
+			id: showPanelIndicator.connect('notify::active', () => {
+				const active = showPanelIndicator.active;
+				if (active !== this._settings.get_boolean('panel-indicator-enabled'))
+					this._settings.set_boolean('panel-indicator-enabled', active);
+			}),
+		});
+		this._signalHandlers.push({
+			obj: this._settings,
+			id: this._settings.connect('changed::panel-indicator-enabled', () => {
+				const active = this._settings.get_boolean('panel-indicator-enabled');
+				if (showPanelIndicator.active !== active)
+					showPanelIndicator.active = active;
+			}),
 		});
 
 		const panelSide = new Adw.ComboRow({
@@ -345,7 +368,49 @@ export default class Prefs extends ExtensionPreferences {
 			}),
 		});
 
+		this._addOverlayPositionRow(
+			group,
+			'overlay-x',
+			_('Horizontal position'),
+			_('0% is the left edge; 100% is the right edge.')
+		);
+		this._addOverlayPositionRow(
+			group,
+			'overlay-y',
+			_('Vertical position'),
+			_('0% is the top edge; 100% is the bottom edge.')
+		);
+
 		this._page.add(group);
+	}
+
+	_addOverlayPositionRow(group, key, title, subtitle) {
+		const position = Gtk.SpinButton.new_with_range(0, 100, 1);
+		position.set_numeric(true);
+		position.set_value(Math.round(this._settings.get_double(key) * 100));
+
+		const row = new Adw.ActionRow({title, subtitle});
+		row.add_suffix(position);
+		row.activatable_widget = position;
+		group.add(row);
+
+		this._signalHandlers.push({
+			obj: position,
+			id: position.connect('value-changed', () => {
+				const percentage = position.get_value_as_int();
+				const currentPercentage = Math.round(this._settings.get_double(key) * 100);
+				if (percentage !== currentPercentage)
+					this._settings.set_double(key, percentage / 100);
+			}),
+		});
+		this._signalHandlers.push({
+			obj: this._settings,
+			id: this._settings.connect(`changed::${key}`, () => {
+				const percentage = Math.round(this._settings.get_double(key) * 100);
+				if (position.get_value_as_int() !== percentage)
+					position.set_value(percentage);
+			}),
+		});
 	}
 
 	// Create and show an dialog with custom and saved symbols overview and ask if cancel, save & switch or switch without saving.

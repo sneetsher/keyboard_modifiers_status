@@ -89,6 +89,11 @@
 			<summary>Indicator Order</summary>
 			<description>Indicator order to other indicators on the panel box.</description>
 		</key>
+		<key name="panel-indicator-enabled" type="b">
+			<default>true</default>
+			<summary>Show Panel Indicator</summary>
+			<description>Show the modifier status indicator in the GNOME Shell panel.</description>
+		</key>
 		<key name="overlay-enabled" type="b">
 			<default>false</default>
 			<summary>Desktop Overlay</summary>
