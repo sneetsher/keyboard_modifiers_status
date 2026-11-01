@@ -38,7 +38,7 @@ Open the preferences window:
 gnome-extensions prefs keyboard_modifiers_status@sneetsher
 ```
 
-Use the preferences to change modifier symbols, choose presets or save custom symbols, show or hide the panel indicator, adjust its placement, and optionally show a translucent desktop overlay. Drag the overlay to move it; its position is saved across sessions. Symbol and panel visibility changes apply immediately; changes to panel side or indicator order apply after disabling and re-enabling the extension. Settings are also available through `gsettings` or the repository helper `./scripts/gsettings-wrapper.sh`. The full key list and defaults are in the [GSettings schema](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml).
+Use the preferences to change modifier symbols, choose presets or save custom symbols, show or hide the panel indicator, adjust its placement, and optionally show a translucent desktop overlay. Drag the overlay to move it; its position is saved across sessions. If it moves out of view, use the overlay's horizontal and vertical position controls in preferences to bring it back. Symbol and panel visibility changes apply immediately; changes to panel side or indicator order apply after disabling and re-enabling the extension. Settings are also available through `gsettings` or the repository helper `./scripts/gsettings-wrapper.sh`. The full key list and defaults are in the [GSettings schema](schemas/org.gnome.shell.extensions.keyboard-modifiers-status.gschema.xml).
 
 For example, place the indicator at the end of the left panel section:
 
