@@ -191,6 +191,7 @@ export default class Prefs extends ExtensionPreferences {
 				const equal = this._symbolsObjectsEqual(this._savedSymbols, newSavedSymbols);
 				console.debug(`${tag} settings:changed::saved-symbols: new ${JSON.stringify(newSavedSymbols)}, equal:${equal}`);
 				if (!equal) {
+					this._savedSymbols = newSavedSymbols;
 					updatePresetsBox(dropdownNotifyId);
 				}
 			})

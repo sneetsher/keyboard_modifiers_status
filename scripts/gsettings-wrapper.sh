@@ -5,10 +5,10 @@ id=org.gnome.shell.extensions.keyboard-modifiers-status
 
 
 
-if [ $1 ];  then
+if [ "$#" -gt 0 ]; then
   set -x
-  gsettings --schemadir ${schema} $1 ${id} $2 $3;
+  gsettings --schemadir "$schema" "$1" "$id" "${@:2}"
 else
   set -x
-  gsettings --schemadir ${schema} list-recursively ${id};
+  gsettings --schemadir "$schema" list-recursively "$id"
 fi
