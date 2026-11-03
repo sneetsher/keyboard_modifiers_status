@@ -12,6 +12,12 @@ dist:
 
 pack: dist
 
+check-env:
+	python -m venv venv
+	@. venv/bin/activate && pip install -r requirements.txt
+check:
+	@. venv/bin/activate && shexli keyboard_modifiers_status@*.shell-extension.zip
+
 install: dist
 	gnome-extensions install keyboard_modifiers_status@*.shell-extension.zip --force
 
