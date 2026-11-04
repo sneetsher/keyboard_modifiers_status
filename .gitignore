@@ -1,5 +1,10 @@
-package/
+# compiles
 schemas/gschemas.compiled
-*.shell-extension.zip
 experiments/gdk/gdk3-modifier-state
 experiments/gtk/gtk3-modifier-state
+
+# distribution
+*.shell-extension.zip
+
+# env
+venv/
