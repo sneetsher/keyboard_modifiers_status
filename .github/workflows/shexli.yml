@@ -13,7 +13,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: requirements
-        run: sudo apt install gnome-shell
+        run: |
+          sudo apt update
+          sudo apt install gnome-shell build-essential
 
       - name: Build extension
         run: make pack
