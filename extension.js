@@ -29,6 +29,11 @@ import GLib from 'gi://GLib';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import * as Config from 'resource:///org/gnome/shell/misc/config.js';
+import Meta from 'gi://Meta';
+
+let shellVersion = Config.PACKAGE_VERSION;
+let isWayland = Meta.is_wayland_compositor();
 const tag = 'KMS-Ext:';
 
 // Mapping of logical modifier names to the Clutter.ModifierType constants used by GNOME Shell.
