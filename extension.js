@@ -122,22 +122,14 @@ export default class KMS extends Extension {
 
         logger.debug(`${tag} Acquiring keyboard seat`);
         try {
-            // Gnome-shell v51 removed Clutter.get_default_backend()
             this._seat = global.stage.context.get_backend().get_default_seat();
         } catch (e) {
-            logger.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend: ${e.message}`);
+            logger.debug(`${tag} Stage backend seat lookup failed; trying DeviceManager: ${e.message}`);
             try {
-                // Clutter 1.24+ exposes the default seat via the backend object.
-                this._seat = Clutter.get_default_backend().get_default_seat();
-            } catch (e) {
-                logger.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager: ${e.message}`);
-                // Older versions fall back to DeviceManager.
-                try {
-                    this._seat = Clutter.DeviceManager.get_default();
-                } catch (fallbackError) {
-                    logger.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
-                    throw fallbackError;
-                }
+                this._seat = Clutter.DeviceManager.get_default();
+            } catch (fallbackError) {
+                logger.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
+                throw fallbackError;
             }
         }
 
@@ -185,9 +177,12 @@ export default class KMS extends Extension {
         };
 
         if (this._indicator) {
+            if (this._label) {
+                this._label.destroy();
+                this._label = null;
+            }
             this._indicator.destroy();
             this._indicator = null;
-            this._label = null;
             this._indicatorText = '';
         }
         this._destroyOverlay();
@@ -311,9 +306,12 @@ export default class KMS extends Extension {
             );
         } catch (e) {
             logger.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
+            if (this._label) {
+                this._label.destroy();
+                this._label = null;
+            }
             this._indicator.destroy();
             this._indicator = null;
-            this._label = null;
             throw e;
         }
 
@@ -348,7 +346,7 @@ export default class KMS extends Extension {
         });
         this._overlay.add_child(this._overlayLabel);
 
-        this._overlay.connect('button-press-event', (_actor, event) => {
+        this._overlayButtonPressId = this._overlay.connect('button-press-event', (_actor, event) => {
             if (event.get_button() !== Clutter.BUTTON_PRIMARY)
                 return Clutter.EVENT_PROPAGATE;
 
@@ -371,9 +369,14 @@ export default class KMS extends Extension {
             });
         } catch (e) {
             logger.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
+            if (this._overlayButtonPressId) {
+                this._overlay.disconnect(this._overlayButtonPressId);
+                this._overlayButtonPressId = null;
+            }
+            this._overlayLabel.destroy();
+            this._overlayLabel = null;
             this._overlay.destroy();
             this._overlay = null;
-            this._overlayLabel = null;
             throw e;
         }
 
@@ -421,11 +424,17 @@ export default class KMS extends Extension {
             this._overlayStageSizeId = null;
         }
 
+        if (this._overlay && this._overlayButtonPressId) {
+            this._overlay.disconnect(this._overlayButtonPressId);
+            this._overlayButtonPressId = null;
+        }
+
         if (this._overlay) {
             Main.layoutManager.removeChrome(this._overlay);
+            this._overlayLabel.destroy();
+            this._overlayLabel = null;
             this._overlay.destroy();
             this._overlay = null;
-            this._overlayLabel = null;
         }
     }
 
