@@ -5,6 +5,7 @@ This is a very small and simple extension. It can be easily modified or used as 
 
 ## Debug tools
 
+- Set `DEBUG` to `true` in `logging.js`, then restart the extension and reopen its preferences to enable diagnostic logs.
 - LookingGlass tool.
 - Follow system log, using `make debug` (extension prints Shell and Clutter versions on startup)
 

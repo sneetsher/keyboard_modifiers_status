@@ -28,6 +28,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import GLib from 'gi://GLib';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { logger } from './logging.js';
 
 const tag = 'KMS-Ext:';
 
@@ -63,11 +64,11 @@ export default class KMS extends Extension {
         super(metadata);
         // Don't create or initialize anything here. Use enable() method for initialization.
         // Follow the guidelines: https://gjs.guide/extensions/review-guidelines/review-guidelines.html
-        console.debug(`${tag} constructor() ... done ${this.metadata.name}`);
+        logger.debug(`${tag} constructor() ... done ${this.metadata.name}`);
     }
 
     enable() {
-        console.debug(`${tag} enable() ... in`);
+        logger.debug(`${tag} enable() ... in`);
 
         // Last retrieved modifier state and previous values for change tracking.
         this._state = 0;
@@ -103,11 +104,11 @@ export default class KMS extends Extension {
         this._settings = this.getSettings();
         this._loadSettings();
         this._settingsChangedId = this._settings.connect('changed', (_settings, key) => {
-            console.debug(`${tag} Setting changed: ${key}`);
+            logger.debug(`${tag} Setting changed: ${key}`);
             try {
                 this._settings_changed(key);
             } catch (e) {
-                console.error(`${tag} Failed to handle setting "${key}": ${e.message}`);
+                logger.error(`${tag} Failed to handle setting "${key}": ${e.message}`);
                 throw e;
             }
         });
@@ -117,24 +118,24 @@ export default class KMS extends Extension {
 
         this._register_indicator();
 
-        //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
+        //logger.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
-        console.debug(`${tag} Acquiring keyboard seat`);
+        logger.debug(`${tag} Acquiring keyboard seat`);
         try {
             // Gnome-shell v51 removed Clutter.get_default_backend()
             this._seat = global.stage.context.get_backend().get_default_seat();
         } catch (e) {
-            console.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend: ${e.message}`);
+            logger.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend: ${e.message}`);
             try {
                 // Clutter 1.24+ exposes the default seat via the backend object.
                 this._seat = Clutter.get_default_backend().get_default_seat();
             } catch (e) {
-                console.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager: ${e.message}`);
+                logger.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager: ${e.message}`);
                 // Older versions fall back to DeviceManager.
                 try {
                     this._seat = Clutter.DeviceManager.get_default();
                 } catch (fallbackError) {
-                    console.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
+                    logger.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
                     throw fallbackError;
                 }
             }
@@ -145,19 +146,19 @@ export default class KMS extends Extension {
             try {
                 this._mods_update_id = this._seat.connect('kbd-a11y-mods-state-changed', this._a11y_mods_update.bind(this));
             } catch (e) {
-                console.error(`${tag} Failed to connect keyboard accessibility modifier signal: ${e.message}`);
+                logger.error(`${tag} Failed to connect keyboard accessibility modifier signal: ${e.message}`);
                 throw e;
             }
-            console.debug(`${tag} Connected keyboard accessibility modifier signal`);
+            logger.debug(`${tag} Connected keyboard accessibility modifier signal`);
         } else {
-            console.warn(`${tag} No keyboard seat available; latch/lock updates will be unavailable`);
+            logger.warn(`${tag} No keyboard seat available; latch/lock updates will be unavailable`);
         }
 
         // Periodically refresh the indicator (200ms).
         this._timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, this._update.bind(this));
-        console.debug(`${tag} Started modifier state polling (200ms)`);
+        logger.debug(`${tag} Started modifier state polling (200ms)`);
 
-        console.debug(`${tag} enable() ... out`);
+        logger.debug(`${tag} enable() ... out`);
     }
 
     // Tear down everything created in enable().
@@ -168,7 +169,7 @@ export default class KMS extends Extension {
 	 * accessibility feature yet. As inside user session, users who
 	 * need it, require modifiers status for any keyboard typing.
 	 */
-        console.debug(`${tag} disable() ... in`);
+        logger.debug(`${tag} disable() ... in`);
 
         if (this._timeout_id) {
             GLib.source_remove(this._timeout_id);
@@ -214,13 +215,13 @@ export default class KMS extends Extension {
         this._lock = 0;
         this._prev_lock = null;
 
-        console.debug(`${tag} disable() ... out`);
+        logger.debug(`${tag} disable() ... out`);
     }
 
     // Read all user-configurable symbols from GSettings.
     _loadSettings() {
         if (!this._settings) {
-            console.warn(`${tag} this._settings is null`);
+            logger.warn(`${tag} this._settings is null`);
             return;
         }
 
@@ -237,10 +238,10 @@ export default class KMS extends Extension {
             this._panSide = this._settings.get_enum('panel-side');
             this._indOrder = this._settings.get_int('indicator-order');
         } catch (e) {
-            console.error(`${tag} Failed to load extension settings: ${e.message}`);
+            logger.error(`${tag} Failed to load extension settings: ${e.message}`);
             throw e;
         }
-        console.debug(`${tag} Loaded settings: ${this._symModifiers.length} modifier symbols, panel side ${this._panSide}, order ${this._indOrder}`);
+        logger.debug(`${tag} Loaded settings: ${this._symModifiers.length} modifier symbols, panel side ${this._panSide}, order ${this._indOrder}`);
     }
 
     _settings_changed(key) {
@@ -309,7 +310,7 @@ export default class KMS extends Extension {
                 panelBox
             );
         } catch (e) {
-            console.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
+            logger.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
             this._indicator.destroy();
             this._indicator = null;
             this._label = null;
@@ -319,13 +320,13 @@ export default class KMS extends Extension {
         this._indicator.visible = this._settings.get_boolean('panel-indicator-enabled');
         this._registeredPanelSide = this._panSide;
         this._registeredIndicatorOrder = this._indOrder;
-        console.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
+        logger.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
     }
 
     _log_deferred_placement_change() {
         if (this._registeredPanelSide !== this._panSide ||
             this._registeredIndicatorOrder !== this._indOrder) {
-            console.debug(`${tag} Panel placement preference changed; disable and re-enable the extension to apply it`);
+            logger.debug(`${tag} Panel placement preference changed; disable and re-enable the extension to apply it`);
         }
     }
 
@@ -369,7 +370,7 @@ export default class KMS extends Extension {
                 trackFullscreen: false,
             });
         } catch (e) {
-            console.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
+            logger.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
             this._overlay.destroy();
             this._overlay = null;
             this._overlayLabel = null;
@@ -380,7 +381,7 @@ export default class KMS extends Extension {
             this._positionOverlayFromSettings();
         });
         this._positionOverlayFromSettings();
-        console.debug(`${tag} Created draggable desktop overlay`);
+        logger.debug(`${tag} Created draggable desktop overlay`);
     }
 
     _handleOverlayDragEvent(event) {
@@ -507,9 +508,9 @@ export default class KMS extends Extension {
             return;
 
         if (stateChanged) {
-            console.debug(`${tag} Modifier state changed: ${this._prev_state}->${this._state}, latch ${this._prev_latch}->${this._latch}, lock ${this._prev_lock}->${this._lock}`);
+            logger.debug(`${tag} Modifier state changed: ${this._prev_state}->${this._state}, latch ${this._prev_latch}->${this._latch}, lock ${this._prev_lock}->${this._lock}`);
         } else {
-            console.debug(`${tag} Refreshing indicator after settings change`);
+            logger.debug(`${tag} Refreshing indicator after settings change`);
         }
 
         this._indicatorText = this._symIcon + this._symOpening;
