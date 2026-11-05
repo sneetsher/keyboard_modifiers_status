@@ -127,14 +127,22 @@ export default class KMS extends Extension {
 
         logger.debug(`${tag} Acquiring keyboard seat`);
         try {
+            // Gnome-shell v51 removed Clutter.get_default_backend()
             this._seat = global.stage.context.get_backend().get_default_seat();
         } catch (e) {
-            logger.debug(`${tag} Stage backend seat lookup failed; trying DeviceManager: ${e.message}`);
+            logger.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend: ${e.message}`);
             try {
-                this._seat = Clutter.DeviceManager.get_default();
-            } catch (fallbackError) {
-                logger.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
-                throw fallbackError;
+                // Clutter 1.24+ exposes the default seat via the backend object.
+                this._seat = Clutter.get_default_backend().get_default_seat();
+            } catch (e) {
+                logger.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager: ${e.message}`);
+                // Older versions fall back to DeviceManager.
+                try {
+                    this._seat = Clutter.DeviceManager.get_default();
+                } catch (fallbackError) {
+                    logger.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
+                    throw fallbackError;
+                }
             }
         }
 
