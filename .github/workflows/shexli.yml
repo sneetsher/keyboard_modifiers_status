@@ -15,7 +15,7 @@ jobs:
       - name: requirements
         run: |
           sudo apt update
-          sudo apt install gnome-shell build-essential
+          sudo apt install --no-install-recommends gnome-shell build-essential
 
       - name: Build extension
         run: make pack

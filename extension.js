@@ -28,12 +28,13 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import GLib from 'gi://GLib';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { logger } from './logging.js';
 
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
-import Meta from 'gi://Meta';
 
-let shellVersion = Config.PACKAGE_VERSION;
-let isWayland = Meta.is_wayland_compositor();
+const [shellVersionMajor, shellVersionMinor, shellVersionMicro] = Config.PACKAGE_VERSION.split('.').map(Number);
+//const [clutterVersionMajor, clutterVersionMinor, clutterVersionMicro] = Clutter.version.split('.').map(Number);
+let [clutterVersionMajor, clutterVersionMinor, clutterVersionMicro] = [1,24,0];
 const tag = 'KMS-Ext:';
 
 // Mapping of logical modifier names to the Clutter.ModifierType constants used by GNOME Shell.
@@ -68,11 +69,11 @@ export default class KMS extends Extension {
         super(metadata);
         // Don't create or initialize anything here. Use enable() method for initialization.
         // Follow the guidelines: https://gjs.guide/extensions/review-guidelines/review-guidelines.html
-        console.debug(`${tag} constructor() ... done ${this.metadata.name}`);
+        logger.debug(`${tag} constructor() ... done ${this.metadata.name}`);
     }
 
     enable() {
-        console.debug(`${tag} enable() ... in`);
+        logger.debug(`${tag} enable() ... in`);
 
         // Last retrieved modifier state and previous values for change tracking.
         this._state = 0;
@@ -108,13 +109,8 @@ export default class KMS extends Extension {
         this._settings = this.getSettings();
         this._loadSettings();
         this._settingsChangedId = this._settings.connect('changed', (_settings, key) => {
-            console.debug(`${tag} Setting changed: ${key}`);
-            try {
-                this._settings_changed(key);
-            } catch (e) {
-                console.error(`${tag} Failed to handle setting "${key}": ${e.message}`);
-                throw e;
-            }
+            logger.debug(`${tag} Setting changed: ${key}`);
+            this._settings_changed(key);
         });
 
         if (this._settings.get_boolean('overlay-enabled'))
@@ -122,47 +118,39 @@ export default class KMS extends Extension {
 
         this._register_indicator();
 
-        //console.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
+        //logger.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
-        console.debug(`${tag} Acquiring keyboard seat`);
-        try {
-            // Gnome-shell v51 removed Clutter.get_default_backend()
+        logger.debug(`${tag} Acquiring keyboard seat`);
+
+        if (shellVersionMajor >= 51) {
             this._seat = global.stage.context.get_backend().get_default_seat();
-        } catch (e) {
-            console.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend: ${e.message}`);
-            try {
-                // Clutter 1.24+ exposes the default seat via the backend object.
-                this._seat = Clutter.get_default_backend().get_default_seat();
-            } catch (e) {
-                console.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager: ${e.message}`);
+        }
+        else {
+            if (clutterVersionMajor === 1 && clutterVersionMinor >= 24) {
+            logger.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend.`);
+            // Clutter 1.24+ exposes the default seat via the backend object.
+            this._seat = Clutter.get_default_backend().get_default_seat();
+            }
+            else {
+                logger.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager.`);
                 // Older versions fall back to DeviceManager.
-                try {
-                    this._seat = Clutter.DeviceManager.get_default();
-                } catch (fallbackError) {
-                    console.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
-                    throw fallbackError;
-                }
+                this._seat = Clutter.DeviceManager.get_default();
             }
         }
 
         if (this._seat) {
             // Listen for changes from the "sticky keys" accessibility feature.
-            try {
-                this._mods_update_id = this._seat.connect('kbd-a11y-mods-state-changed', this._a11y_mods_update.bind(this));
-            } catch (e) {
-                console.error(`${tag} Failed to connect keyboard accessibility modifier signal: ${e.message}`);
-                throw e;
-            }
-            console.debug(`${tag} Connected keyboard accessibility modifier signal`);
+            this._mods_update_id = this._seat.connect('kbd-a11y-mods-state-changed', this._a11y_mods_update.bind(this));
+            logger.debug(`${tag} Connected keyboard accessibility modifier signal`);
         } else {
-            console.warn(`${tag} No keyboard seat available; latch/lock updates will be unavailable`);
+            logger.warn(`${tag} No keyboard seat available; latch/lock updates will be unavailable`);
         }
 
         // Periodically refresh the indicator (200ms).
         this._timeout_id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, this._update.bind(this));
-        console.debug(`${tag} Started modifier state polling (200ms)`);
+        logger.debug(`${tag} Started modifier state polling (200ms)`);
 
-        console.debug(`${tag} enable() ... out`);
+        logger.debug(`${tag} enable() ... out`);
     }
 
     // Tear down everything created in enable().
@@ -173,7 +161,7 @@ export default class KMS extends Extension {
 	 * accessibility feature yet. As inside user session, users who
 	 * need it, require modifiers status for any keyboard typing.
 	 */
-        console.debug(`${tag} disable() ... in`);
+        logger.debug(`${tag} disable() ... in`);
 
         if (this._timeout_id) {
             GLib.source_remove(this._timeout_id);
@@ -189,9 +177,12 @@ export default class KMS extends Extension {
         };
 
         if (this._indicator) {
+            if (this._label) {
+                this._label.destroy();
+                this._label = null;
+            }
             this._indicator.destroy();
             this._indicator = null;
-            this._label = null;
             this._indicatorText = '';
         }
         this._destroyOverlay();
@@ -219,33 +210,28 @@ export default class KMS extends Extension {
         this._lock = 0;
         this._prev_lock = null;
 
-        console.debug(`${tag} disable() ... out`);
+        logger.debug(`${tag} disable() ... out`);
     }
 
     // Read all user-configurable symbols from GSettings.
     _loadSettings() {
         if (!this._settings) {
-            console.warn(`${tag} this._settings is null`);
+            logger.warn(`${tag} this._settings is null`);
             return;
         }
 
-        try {
-            this._symModifiers = [...MODIFIER_SYMBOLS].map(([key, mask]) => [
-                mask,
-                this._settings.get_string(key),
-            ]);
-            this._symLatch = this._settings.get_string('latch-symbol');
-            this._symLock = this._settings.get_string('lock-symbol');
-            this._symIcon = this._settings.get_string('icon-symbol');
-            this._symOpening = this._settings.get_string('opening-symbol');
-            this._symClosing = this._settings.get_string('closing-symbol');
-            this._panSide = this._settings.get_enum('panel-side');
-            this._indOrder = this._settings.get_int('indicator-order');
-        } catch (e) {
-            console.error(`${tag} Failed to load extension settings: ${e.message}`);
-            throw e;
-        }
-        console.debug(`${tag} Loaded settings: ${this._symModifiers.length} modifier symbols, panel side ${this._panSide}, order ${this._indOrder}`);
+        this._symModifiers = [...MODIFIER_SYMBOLS].map(([key, mask]) => [
+            mask,
+            this._settings.get_string(key),
+        ]);
+        this._symLatch = this._settings.get_string('latch-symbol');
+        this._symLock = this._settings.get_string('lock-symbol');
+        this._symIcon = this._settings.get_string('icon-symbol');
+        this._symOpening = this._settings.get_string('opening-symbol');
+        this._symClosing = this._settings.get_string('closing-symbol');
+        this._panSide = this._settings.get_enum('panel-side');
+        this._indOrder = this._settings.get_int('indicator-order');
+        logger.debug(`${tag} Loaded settings: ${this._symModifiers.length} modifier symbols, panel side ${this._panSide}, order ${this._indOrder}`);
     }
 
     _settings_changed(key) {
@@ -314,23 +300,26 @@ export default class KMS extends Extension {
                 panelBox
             );
         } catch (e) {
-            console.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
+            logger.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
+            if (this._label) {
+                this._label.destroy();
+                this._label = null;
+            }
             this._indicator.destroy();
             this._indicator = null;
-            this._label = null;
             throw e;
         }
 
         this._indicator.visible = this._settings.get_boolean('panel-indicator-enabled');
         this._registeredPanelSide = this._panSide;
         this._registeredIndicatorOrder = this._indOrder;
-        console.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
+        logger.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
     }
 
     _log_deferred_placement_change() {
         if (this._registeredPanelSide !== this._panSide ||
             this._registeredIndicatorOrder !== this._indOrder) {
-            console.debug(`${tag} Panel placement preference changed; disable and re-enable the extension to apply it`);
+            logger.debug(`${tag} Panel placement preference changed; disable and re-enable the extension to apply it`);
         }
     }
 
@@ -352,7 +341,7 @@ export default class KMS extends Extension {
         });
         this._overlay.add_child(this._overlayLabel);
 
-        this._overlay.connect('button-press-event', (_actor, event) => {
+        this._overlayButtonPressId = this._overlay.connect('button-press-event', (_actor, event) => {
             if (event.get_button() !== Clutter.BUTTON_PRIMARY)
                 return Clutter.EVENT_PROPAGATE;
 
@@ -374,10 +363,15 @@ export default class KMS extends Extension {
                 trackFullscreen: false,
             });
         } catch (e) {
-            console.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
+            logger.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
+            if (this._overlayButtonPressId) {
+                this._overlay.disconnect(this._overlayButtonPressId);
+                this._overlayButtonPressId = null;
+            }
+            this._overlayLabel.destroy();
+            this._overlayLabel = null;
             this._overlay.destroy();
             this._overlay = null;
-            this._overlayLabel = null;
             throw e;
         }
 
@@ -385,7 +379,7 @@ export default class KMS extends Extension {
             this._positionOverlayFromSettings();
         });
         this._positionOverlayFromSettings();
-        console.debug(`${tag} Created draggable desktop overlay`);
+        logger.debug(`${tag} Created draggable desktop overlay`);
     }
 
     _handleOverlayDragEvent(event) {
@@ -425,11 +419,17 @@ export default class KMS extends Extension {
             this._overlayStageSizeId = null;
         }
 
+        if (this._overlay && this._overlayButtonPressId) {
+            this._overlay.disconnect(this._overlayButtonPressId);
+            this._overlayButtonPressId = null;
+        }
+
         if (this._overlay) {
             Main.layoutManager.removeChrome(this._overlay);
+            this._overlayLabel.destroy();
+            this._overlayLabel = null;
             this._overlay.destroy();
             this._overlay = null;
-            this._overlayLabel = null;
         }
     }
 
@@ -512,9 +512,9 @@ export default class KMS extends Extension {
             return;
 
         if (stateChanged) {
-            console.debug(`${tag} Modifier state changed: ${this._prev_state}->${this._state}, latch ${this._prev_latch}->${this._latch}, lock ${this._prev_lock}->${this._lock}`);
+            logger.debug(`${tag} Modifier state changed: ${this._prev_state}->${this._state}, latch ${this._prev_latch}->${this._latch}, lock ${this._prev_lock}->${this._lock}`);
         } else {
-            console.debug(`${tag} Refreshing indicator after settings change`);
+            logger.debug(`${tag} Refreshing indicator after settings change`);
         }
 
         this._indicatorText = this._symIcon + this._symOpening;
