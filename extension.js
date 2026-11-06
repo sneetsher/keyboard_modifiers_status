@@ -31,10 +31,10 @@ import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import { logger } from './logging.js';
 
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
-import Meta from 'gi://Meta';
 
-let shellVersion = Config.PACKAGE_VERSION;
-let isWayland = Meta.is_wayland_compositor();
+const [shellVersionMajor, shellVersionMinor, shellVersionMicro] = Config.PACKAGE_VERSION.split('.').map(Number);
+//const [clutterVersionMajor, clutterVersionMinor, clutterVersionMicro] = Clutter.version.split('.').map(Number);
+let [clutterVersionMajor, clutterVersionMinor, clutterVersionMicro] = [1,24,0];
 const tag = 'KMS-Ext:';
 
 // Mapping of logical modifier names to the Clutter.ModifierType constants used by GNOME Shell.
@@ -110,12 +110,7 @@ export default class KMS extends Extension {
         this._loadSettings();
         this._settingsChangedId = this._settings.connect('changed', (_settings, key) => {
             logger.debug(`${tag} Setting changed: ${key}`);
-            try {
-                this._settings_changed(key);
-            } catch (e) {
-                logger.error(`${tag} Failed to handle setting "${key}": ${e.message}`);
-                throw e;
-            }
+            this._settings_changed(key);
         });
 
         if (this._settings.get_boolean('overlay-enabled'))
@@ -126,34 +121,26 @@ export default class KMS extends Extension {
         //logger.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
         logger.debug(`${tag} Acquiring keyboard seat`);
-        try {
-            // Gnome-shell v51 removed Clutter.get_default_backend()
+
+        if (shellVersionMajor >= 51) {
             this._seat = global.stage.context.get_backend().get_default_seat();
-        } catch (e) {
-            logger.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend: ${e.message}`);
-            try {
-                // Clutter 1.24+ exposes the default seat via the backend object.
-                this._seat = Clutter.get_default_backend().get_default_seat();
-            } catch (e) {
-                logger.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager: ${e.message}`);
+        }
+        else {
+            if (clutterVersionMajor === 1 && clutterVersionMinor >= 24) {
+            logger.debug(`${tag} Stage backend seat lookup failed; trying Clutter backend.`);
+            // Clutter 1.24+ exposes the default seat via the backend object.
+            this._seat = Clutter.get_default_backend().get_default_seat();
+            }
+            else {
+                logger.debug(`${tag} Clutter backend seat lookup failed; trying DeviceManager.`);
                 // Older versions fall back to DeviceManager.
-                try {
-                    this._seat = Clutter.DeviceManager.get_default();
-                } catch (fallbackError) {
-                    logger.error(`${tag} Failed to acquire keyboard seat using all available APIs: ${fallbackError.message}`);
-                    throw fallbackError;
-                }
+                this._seat = Clutter.DeviceManager.get_default();
             }
         }
 
         if (this._seat) {
             // Listen for changes from the "sticky keys" accessibility feature.
-            try {
-                this._mods_update_id = this._seat.connect('kbd-a11y-mods-state-changed', this._a11y_mods_update.bind(this));
-            } catch (e) {
-                logger.error(`${tag} Failed to connect keyboard accessibility modifier signal: ${e.message}`);
-                throw e;
-            }
+            this._mods_update_id = this._seat.connect('kbd-a11y-mods-state-changed', this._a11y_mods_update.bind(this));
             logger.debug(`${tag} Connected keyboard accessibility modifier signal`);
         } else {
             logger.warn(`${tag} No keyboard seat available; latch/lock updates will be unavailable`);
@@ -233,22 +220,17 @@ export default class KMS extends Extension {
             return;
         }
 
-        try {
-            this._symModifiers = [...MODIFIER_SYMBOLS].map(([key, mask]) => [
-                mask,
-                this._settings.get_string(key),
-            ]);
-            this._symLatch = this._settings.get_string('latch-symbol');
-            this._symLock = this._settings.get_string('lock-symbol');
-            this._symIcon = this._settings.get_string('icon-symbol');
-            this._symOpening = this._settings.get_string('opening-symbol');
-            this._symClosing = this._settings.get_string('closing-symbol');
-            this._panSide = this._settings.get_enum('panel-side');
-            this._indOrder = this._settings.get_int('indicator-order');
-        } catch (e) {
-            logger.error(`${tag} Failed to load extension settings: ${e.message}`);
-            throw e;
-        }
+        this._symModifiers = [...MODIFIER_SYMBOLS].map(([key, mask]) => [
+            mask,
+            this._settings.get_string(key),
+        ]);
+        this._symLatch = this._settings.get_string('latch-symbol');
+        this._symLock = this._settings.get_string('lock-symbol');
+        this._symIcon = this._settings.get_string('icon-symbol');
+        this._symOpening = this._settings.get_string('opening-symbol');
+        this._symClosing = this._settings.get_string('closing-symbol');
+        this._panSide = this._settings.get_enum('panel-side');
+        this._indOrder = this._settings.get_int('indicator-order');
         logger.debug(`${tag} Loaded settings: ${this._symModifiers.length} modifier symbols, panel side ${this._panSide}, order ${this._indOrder}`);
     }
 
