@@ -33,8 +33,6 @@ import { logger } from './logging.js';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 
 const [shellVersionMajor, shellVersionMinor, shellVersionMicro] = Config.PACKAGE_VERSION.split('.').map(Number);
-//const [clutterVersionMajor, clutterVersionMinor, clutterVersionMicro] = Clutter.version.split('.').map(Number);
-let [clutterVersionMajor, clutterVersionMinor, clutterVersionMicro] = [1,24,0];
 const tag = 'KMS-Ext:';
 
 // Mapping of logical modifier names to the Clutter.ModifierType constants used by GNOME Shell.
