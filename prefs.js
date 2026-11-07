@@ -2,6 +2,7 @@ import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import { logger } from './logging.js';
 
 // Preferences dialog for the Keyboard Modifiers Status extension.
 // It exposes customizable symbols grouped into modifier, accessibility and wrapper categories.
@@ -12,7 +13,7 @@ const tag = 'KMS-Ext-Prefs:';
 export default class Prefs extends ExtensionPreferences {
 
 	fillPreferencesWindow(window) {
-		console.debug(`${tag} fillPreferencesWindow() ... in`);
+		logger.debug(`${tag} fillPreferencesWindow() ... in`);
 
 		this._settings = this.getSettings();
 		this._schema = this._settings.settings_schema;
@@ -28,8 +29,8 @@ export default class Prefs extends ExtensionPreferences {
 		// Cache current values from GSettings and previously saved preset.
 		this._currentSymbols = this._getSchemaModifierSymbols([].concat(modifiersKeys, accessibilityKeys, wrapperKeys));
 		this._savedSymbols = this._settings.get_value('saved-symbols').deep_unpack();
-		console.debug(`${tag} this._currentSymbols: ${JSON.stringify(this._currentSymbols)}`);
-		console.debug(`${tag} this._savedSymbols: ${JSON.stringify(this._savedSymbols)}`);
+		logger.debug(`${tag} this._currentSymbols: ${JSON.stringify(this._currentSymbols)}`);
+		logger.debug(`${tag} this._savedSymbols: ${JSON.stringify(this._savedSymbols)}`);
 
 		// Keep references to entry widgets for each key to sync changes.
 		this._groupEntries = {};
@@ -72,12 +73,12 @@ export default class Prefs extends ExtensionPreferences {
 		// Connect the cleanup method to the close-request signal
 		window.connect('close-request', () => this._cleanup());
 
-		console.debug(`${tag} fillPreferencesWindow() ... out`);
+		logger.debug(`${tag} fillPreferencesWindow() ... out`);
 	}
 
 	// Helper to build a preference group with a presets drop-down and entry fields.
 	_addGroup(title, description, keys, presets) {
-		console.debug(`${tag} _addGroup() ... in`);
+		logger.debug(`${tag} _addGroup() ... in`);
 		const group = new Adw.PreferencesGroup({title: title, description: description});
 
 		// Create presets UI elements.
@@ -98,13 +99,13 @@ export default class Prefs extends ExtensionPreferences {
 		const savedIndex = presets.size + 1;
 		// Helper function to refresh the visibility of the Save button.
 		const refreshSaveButton = () => {
-			console.debug(`${tag} refreshSaveButton: selected: ${presetsDropDown.selected}, differ: ${this._currentDifferSaved(keys)}`);
+			logger.debug(`${tag} refreshSaveButton: selected: ${presetsDropDown.selected}, differ: ${this._currentDifferSaved(keys)}`);
 			saveButton.visible = presetsDropDown.selected === 0 && this._currentDifferSaved(keys);
 		};
 
 		// Helper function to update the presets dropdown, according to currently used symbols.
 		const updatePresetsBox = (dropdownNotifyId) => {
-			console.debug(`${tag} _addGroup: updatePresetsBox(${dropdownNotifyId})`);
+			logger.debug(`${tag} _addGroup: updatePresetsBox(${dropdownNotifyId})`);
 			let foundIdx = 0;
 			// Check if current symbols are the same as Saved symbols.
 			if (!this._currentDifferSaved(keys)) {
@@ -116,7 +117,7 @@ export default class Prefs extends ExtensionPreferences {
 			if (presetsDropDown.selected != foundIdx) {
 				// Dropdown selected item has to change, but first block signals from triggering the update of the dropdown.
 				presetsDropDown.block_signal_handler(dropdownNotifyId);
-				console.debug(`${tag} updatePresetsBox: set dropdown selected: ${foundIdx}`);
+				logger.debug(`${tag} updatePresetsBox: set dropdown selected: ${foundIdx}`);
 				presetsDropDown.selected = foundIdx;
 				// Wait until idle, to not unblock too early. When unblocking without wait, the dropdown update is sometimes triggered.
 				this._queueSignalUnblock(presetsDropDown, dropdownNotifyId);
@@ -127,7 +128,7 @@ export default class Prefs extends ExtensionPreferences {
 		// If dropdown is changed, apply the selected preset.
 		const dropdownNotifyId = presetsDropDown.connect('notify::selected', () => {
 			const idx = presetsDropDown.selected;
-			console.debug(`${tag} presetsDropDown.notify::selected saveButton.visible: ${saveButton.visible}, selected: ${idx}`);
+			logger.debug(`${tag} presetsDropDown.notify::selected saveButton.visible: ${saveButton.visible}, selected: ${idx}`);
 			if (idx === 0) {
 				updatePresetsBox(dropdownNotifyId);
 				return;
@@ -137,7 +138,7 @@ export default class Prefs extends ExtensionPreferences {
 				const values = idx === savedIndex
 					? keys.map(k => this._savedSymbols[k] ?? '')
 					: Array.from(presets.values())[idx - 1];
-				console.debug(`${tag} presetsDropDown.notify::selected: applyPreset ${idx}: ${values}`);
+				logger.debug(`${tag} presetsDropDown.notify::selected: applyPreset ${idx}: ${values}`);
 				// Change each text entry and current settings according to selected preset.
 				keys.forEach((k, i) => {
 					const val = values[i];
@@ -147,12 +148,12 @@ export default class Prefs extends ExtensionPreferences {
 						if (entry) {
 							// Block entry update signal before changing, to not trigger update.
 							entry.block_signal_handler(changedId);
-							console.debug(`${tag} presetsDropDown.notify::selected: applyPreset: change entry text: ${entry.text} -> ${val}`);
+							logger.debug(`${tag} presetsDropDown.notify::selected: applyPreset: change entry text: ${entry.text} -> ${val}`);
 							entry.text = val;
 							// Wait before unblocking, to not unblock too early and trigger update.
 							this._queueSignalUnblock(entry, changedId);
 						}
-						console.debug(`${tag} presetsDropDown.notify::selected: applyPreset: set ${k} to ${val}`);
+						logger.debug(`${tag} presetsDropDown.notify::selected: applyPreset: set ${k} to ${val}`);
 						// Save to settings.
 						this._settings.set_string(k, val);
 					}
@@ -172,11 +173,11 @@ export default class Prefs extends ExtensionPreferences {
 		this._signalHandlers.push({
 			obj: saveButton,
 			id: saveButton.connect('clicked', () => {
-				console.debug(`${tag} saveButton:clicked`);
+				logger.debug(`${tag} saveButton:clicked`);
 				keys.forEach(k => {
 					this._savedSymbols[k] = this._currentSymbols[k];
 				});
-				console.debug(`${tag} saveButton:clicked: set saved symbols to: ${JSON.stringify(this._savedSymbols)}`);
+				logger.debug(`${tag} saveButton:clicked: set saved symbols to: ${JSON.stringify(this._savedSymbols)}`);
 				this._settings.set_value('saved-symbols', new GLib.Variant('a{ss}', this._savedSymbols));
 				updatePresetsBox(dropdownNotifyId);
 			})
@@ -186,10 +187,10 @@ export default class Prefs extends ExtensionPreferences {
 		this._signalHandlers.push({
 			obj: this._settings,
 			id: this._settings.connect('changed::saved-symbols', () => {
-				console.debug(`${tag} settings:changed::saved-symbols`);
+				logger.debug(`${tag} settings:changed::saved-symbols`);
 				const newSavedSymbols = this._settings.get_value('saved-symbols').deep_unpack();
 				const equal = this._symbolsObjectsEqual(this._savedSymbols, newSavedSymbols);
-				console.debug(`${tag} settings:changed::saved-symbols: new ${JSON.stringify(newSavedSymbols)}, equal:${equal}`);
+				logger.debug(`${tag} settings:changed::saved-symbols: new ${JSON.stringify(newSavedSymbols)}, equal:${equal}`);
 				if (!equal) {
 					this._savedSymbols = newSavedSymbols;
 					updatePresetsBox(dropdownNotifyId);
@@ -204,12 +205,12 @@ export default class Prefs extends ExtensionPreferences {
 		keys.forEach(key => {
 			const schemaKey = this._schema.get_key(key);
 			if (!schemaKey) {
-				console.warn(`${tag} schema doesn't contain modifier key: ${key}`);
+				logger.warn(`${tag} schema doesn't contain modifier key: ${key}`);
 				return;
 			}
 			// Check for duplicate keys.
 			if (this._groupEntries[key]) {
-				console.warn(`${tag} addGroup: duplicate key: ${key}`);
+				logger.warn(`${tag} addGroup: duplicate key: ${key}`);
 				return;
 			}
 			// Create the row with text entry.
@@ -218,13 +219,13 @@ export default class Prefs extends ExtensionPreferences {
 			row.add_suffix(entry);
 			row.activatable_widget = entry;
 			group.add(row);
-			console.debug(`${tag} _addGroup: add entry ${key}: ${entry.text}`);
+			logger.debug(`${tag} _addGroup: add entry ${key}: ${entry.text}`);
 			// If entry is changed, change the setting and update presets box.
 			const entry_changed_id = entry.connect('changed', () => {
-				console.debug(`${tag} _addGroup: entry::changed ${key}: ${this._currentSymbols[key]} -> ${entry.text})`);
+				logger.debug(`${tag} _addGroup: entry::changed ${key}: ${this._currentSymbols[key]} -> ${entry.text})`);
 				if (this._currentSymbols[key] !== entry.text) {
 					this._currentSymbols[key] = entry.text;
-					console.debug(`${tag} _addGroup: entry::changed ${key}: set setings key: ${entry.text}`);
+					logger.debug(`${tag} _addGroup: entry::changed ${key}: set setings key: ${entry.text}`);
 					this._settings.set_string(key, entry.text);
 					updatePresetsBox(dropdownNotifyId);
 				}
@@ -239,26 +240,26 @@ export default class Prefs extends ExtensionPreferences {
 			this._signalHandlers.push({
 				obj: this._settings,
 				id: this._settings.connect(`changed::${key}`, () => {
-					console.debug(`${tag} _addGroup: setting::changed::${key}() ... in`);
+					logger.debug(`${tag} _addGroup: setting::changed::${key}() ... in`);
 					const val = this._settings.get_string(key);
 					if (this._currentSymbols[key] !== val) {
-						console.debug(`${tag} _addGroup: setting::changed::${key} : ${this._currentSymbols[key]} -> ${val})`);
+						logger.debug(`${tag} _addGroup: setting::changed::${key} : ${this._currentSymbols[key]} -> ${val})`);
 						this._currentSymbols[key] = val;
 						// Block entry update signal before changing, to not trigger update.
 						entry.block_signal_handler(entry_changed_id);
-						console.debug(`${tag} _addGroup: entry::changed ${key}: entry textset ${val}`);
+						logger.debug(`${tag} _addGroup: entry::changed ${key}: entry textset ${val}`);
 						entry.text = val;
 						// Wait before unblocking, to not unblock too early and trigger update.
 						this._queueSignalUnblock(entry, entry_changed_id);
 						updatePresetsBox(dropdownNotifyId);
 					}
-					console.debug(`${tag} _addGroup: setting::changed::${key}() ... out`);
+					logger.debug(`${tag} _addGroup: setting::changed::${key}() ... out`);
 				})
 			});
 		});
 
 		this._page.add(group);
-		console.debug(`${tag} _addGroup() ... out`);
+		logger.debug(`${tag} _addGroup() ... out`);
 	}
 
 	_addPanelIndicatorGroup() {
@@ -416,7 +417,7 @@ export default class Prefs extends ExtensionPreferences {
 
 	// Create and show an dialog with custom and saved symbols overview and ask if cancel, save & switch or switch without saving.
 	_showSwitchDialog(title, keys, presetsDropDown, dropdownNotifyId, applyPreset) {
-		console.debug(`${tag} _showSwitchDialog(title: ${title}, ...)`);
+		logger.debug(`${tag} _showSwitchDialog(title: ${title}, ...)`);
 
 		const dialog = new Adw.MessageDialog({
 			transient_for: this._window,
@@ -482,7 +483,7 @@ export default class Prefs extends ExtensionPreferences {
 		this._signalHandlers.push({
 			obj: dialog,
 			id: dialog.connect('response', (_d, resp) => {
-				console.debug(`${tag} _showSwitchDialog: dialog:response: ${resp}`);
+				logger.debug(`${tag} _showSwitchDialog: dialog:response: ${resp}`);
 				if (resp === 'cancel') {
 					// Cancel was clicked, return dropdown to Custom preset, but block signal first to not trigger the update again.
 					presetsDropDown.block_signal_handler(dropdownNotifyId);
@@ -539,7 +540,7 @@ export default class Prefs extends ExtensionPreferences {
 			try {
 				entry.unblockFn?.();
 			} catch (e) {
-				console.debug(`${tag} _queueSignalUnblock: unblock failed for handler ${handlerId}: ${e}`);
+				logger.debug(`${tag} _queueSignalUnblock: unblock failed for handler ${handlerId}: ${e}`);
 			}
 			return GLib.SOURCE_REMOVE;
 		});
@@ -550,7 +551,7 @@ export default class Prefs extends ExtensionPreferences {
 			try {
 				entry.unblockFn?.();
 			} catch (e) {
-				console.debug(`${tag} _queueSignalUnblock: immediate unblock failed for handler ${handlerId}: ${e}`);
+				logger.debug(`${tag} _queueSignalUnblock: immediate unblock failed for handler ${handlerId}: ${e}`);
 			}
 		}
 	}
@@ -565,7 +566,7 @@ export default class Prefs extends ExtensionPreferences {
 			try {
 				entry.unblockFn?.();
 			} catch (e) {
-				console.debug(`${tag} _drainPendingSignalUnblocks: unblock failed for handler ${entry.handlerId}: ${e}`);
+				logger.debug(`${tag} _drainPendingSignalUnblocks: unblock failed for handler ${entry.handlerId}: ${e}`);
 			}
 		}
 		this._pendingSignalUnblocks.clear();
@@ -573,7 +574,7 @@ export default class Prefs extends ExtensionPreferences {
 
 	// Cleanup method to disconnect all signal handlers and nullify object references.
 	_cleanup() {
-		console.debug(`${tag} _cleanup() ... in`);
+		logger.debug(`${tag} _cleanup() ... in`);
 		this._drainPendingSignalUnblocks();
 		// Disconnect all signal handlers
 		if (this._signalHandlers) {
@@ -594,6 +595,6 @@ export default class Prefs extends ExtensionPreferences {
 		this._savedSymbols = null;
 		this._groupEntries = null;
 		this._page = null;
-		console.debug(`${tag} _cleanup() ... out`);
+		logger.debug(`${tag} _cleanup() ... out`);
 	}
 }
