@@ -114,7 +114,10 @@ export default class KMS extends Extension {
         if (this._settings.get_boolean('overlay-enabled'))
             this._createOverlay();
 
-        this._register_indicator();
+        if (!this._register_indicator()) {
+            this.disable();
+            return;
+        }
 
         //logger.debug(`${tag} Running Wayland: ` + Meta.is_wayland_compositor());
 
@@ -231,8 +234,10 @@ export default class KMS extends Extension {
         const modifierMask = MODIFIER_SYMBOLS.get(key);
         if (modifierMask !== undefined) {
             const modifier = this._symModifiers.find(([mask]) => mask === modifierMask);
-            if (!modifier)
-                throw new Error(`No modifier symbol configured for setting "${key}"`);
+            if (!modifier) {
+                logger.error(`${tag} No modifier symbol configured for setting "${key}"`);
+                return;
+            }
             modifier[1] = this._settings.get_string(key);
             this._refreshIndicator(true);
             return;
@@ -285,28 +290,29 @@ export default class KMS extends Extension {
 
     _register_indicator() {
         const panelBox = ['left', 'center', 'right'][this._panSide] ?? 'right';
-        try {
-            Main.panel.addToStatusArea(
-                this.uuid,
-                this._indicator,
-                this._indOrder,
-                panelBox
-            );
-        } catch (e) {
-            logger.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): ${e.message}`);
+        if (Main.panel.statusArea[this.uuid]) {
+            logger.error(`${tag} Failed to register indicator in panel status area (${panelBox}, order ${this._indOrder}): an indicator with this UUID is already registered`);
             if (this._label) {
                 this._label.destroy();
                 this._label = null;
             }
             this._indicator.destroy();
             this._indicator = null;
-            throw e;
+            return false;
         }
+
+        Main.panel.addToStatusArea(
+            this.uuid,
+            this._indicator,
+            this._indOrder,
+            panelBox
+        );
 
         this._indicator.visible = this._settings.get_boolean('panel-indicator-enabled');
         this._registeredPanelSide = this._panSide;
         this._registeredIndicatorOrder = this._indOrder;
         logger.debug(`${tag} Registered indicator in panel status area (${panelBox}, order ${this._indOrder})`);
+        return true;
     }
 
     _log_deferred_placement_change() {
@@ -334,6 +340,20 @@ export default class KMS extends Extension {
         });
         this._overlay.add_child(this._overlayLabel);
 
+        if (!this._overlay || !this._overlayLabel ||
+            this._overlayLabel.get_parent() !== this._overlay) {
+            logger.error(`${tag} Failed to create desktop overlay widget and label`);
+            if (this._overlayLabel) {
+                this._overlayLabel.destroy();
+                this._overlayLabel = null;
+            }
+            if (this._overlay) {
+                this._overlay.destroy();
+                this._overlay = null;
+            }
+            return;
+        }
+
         this._overlayButtonPressId = this._overlay.connect('button-press-event', (_actor, event) => {
             if (event.get_button() !== Clutter.BUTTON_PRIMARY)
                 return Clutter.EVENT_PROPAGATE;
@@ -350,23 +370,10 @@ export default class KMS extends Extension {
             return Clutter.EVENT_STOP;
         });
 
-        try {
-            Main.layoutManager.addChrome(this._overlay, {
-                affectsStruts: false,
-                trackFullscreen: false,
-            });
-        } catch (e) {
-            logger.error(`${tag} Failed to add desktop overlay to Shell chrome: ${e.message}`);
-            if (this._overlayButtonPressId) {
-                this._overlay.disconnect(this._overlayButtonPressId);
-                this._overlayButtonPressId = null;
-            }
-            this._overlayLabel.destroy();
-            this._overlayLabel = null;
-            this._overlay.destroy();
-            this._overlay = null;
-            throw e;
-        }
+        Main.layoutManager.addChrome(this._overlay, {
+            affectsStruts: false,
+            trackFullscreen: false,
+        });
 
         this._overlayStageSizeId = global.stage.connect('notify::size', () => {
             this._positionOverlayFromSettings();
