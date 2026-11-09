@@ -9,6 +9,7 @@ default:
 
 dist:
 	gnome-extensions pack --force
+	zip keyboard_modifiers_status@*.shell-extension.zip logging.js
 
 pack: dist
 

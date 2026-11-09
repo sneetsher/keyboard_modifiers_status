@@ -1,6 +1,7 @@
 import Gtk from 'gi://Gtk';
 import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { logger } from './logging.js';
 
@@ -522,7 +523,7 @@ export default class Prefs extends ExtensionPreferences {
 	}
 
 	// Queue signal handler unblock so idle sources can finish even if window closes.
-	_queueSignalUnblock(obj, handlerId, customUnblock = null) {
+	_queueSignalUnblock(obj, handlerId) {
 		if (!obj || !handlerId)
 			return;
 		if (!this._pendingSignalUnblocks)
@@ -531,29 +532,27 @@ export default class Prefs extends ExtensionPreferences {
 		const entry = {
 			obj,
 			handlerId,
-			unblockFn: customUnblock ?? (() => obj.unblock_signal_handler(handlerId)),
 			sourceId: 0,
 		};
 
 		entry.sourceId = GLib.idle_add(null, () => {
 			this._pendingSignalUnblocks?.delete(entry);
-			try {
-				entry.unblockFn?.();
-			} catch (e) {
-				logger.debug(`${tag} _queueSignalUnblock: unblock failed for handler ${handlerId}: ${e}`);
-			}
+			this._unblockSignalHandler(entry.obj, entry.handlerId);
 			return GLib.SOURCE_REMOVE;
 		});
 
 		if (entry.sourceId)
 			this._pendingSignalUnblocks.add(entry);
-		else {
-			try {
-				entry.unblockFn?.();
-			} catch (e) {
-				logger.debug(`${tag} _queueSignalUnblock: immediate unblock failed for handler ${handlerId}: ${e}`);
-			}
+		else
+			this._unblockSignalHandler(entry.obj, entry.handlerId);
+	}
+
+	_unblockSignalHandler(obj, handlerId) {
+		if (!obj || !handlerId || !GObject.signal_handler_is_connected(obj, handlerId)) {
+			logger.debug(`${tag} _unblockSignalHandler: handler ${handlerId} is no longer connected`);
+			return;
 		}
+		obj.unblock_signal_handler(handlerId);
 	}
 
 	// Flush queued unblocks and remove their idle sources during cleanup.
@@ -563,11 +562,7 @@ export default class Prefs extends ExtensionPreferences {
 		for (const entry of this._pendingSignalUnblocks) {
 			if (entry.sourceId)
 				GLib.source_remove(entry.sourceId);
-			try {
-				entry.unblockFn?.();
-			} catch (e) {
-				logger.debug(`${tag} _drainPendingSignalUnblocks: unblock failed for handler ${entry.handlerId}: ${e}`);
-			}
+			this._unblockSignalHandler(entry.obj, entry.handlerId);
 		}
 		this._pendingSignalUnblocks.clear();
 	}
