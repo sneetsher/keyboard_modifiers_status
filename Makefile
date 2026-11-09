@@ -1,7 +1,8 @@
 default:
 	@echo Help:
-	@echo make dist
+	@echo make dist|pack
 	@echo make install
+	@echo make venv
 	@echo make debug
 	@echo make build-experiments
 	@echo make clean
@@ -45,8 +46,8 @@ experiment-gdk4-device:
 experiment-at-spi:
 	gjs ./experiments/at-spi/keyboard-events.js
 
-run-gdk3-c-experiment: build-experiments
+run-gdk3-c-experiment:
 	./experiments/gdk/gdk3-modifier-state
 
-run-gtk3-c-experiment: build-experiments
+run-gtk3-c-experiment:
 	./experiments/gtk/gtk3-modifier-state
