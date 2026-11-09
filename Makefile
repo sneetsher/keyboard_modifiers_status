@@ -13,7 +13,7 @@ dist:
 
 pack: dist
 
-check-env:
+venv:
 	python -m venv venv
 	@. venv/bin/activate && pip install -r requirements.txt
 check:
@@ -30,7 +30,8 @@ build-experiments:
 	gcc `pkg-config --cflags gtk+-3.0` -o experiments/gtk/gtk3-modifier-state experiments/gtk/gtk3-modifier-state.c `pkg-config --libs gtk+-3.0`
 
 clean:
-	rm -f experiments/gdk/gdk3-modifier-state experiments/gtk/gtk3-modifier-state
+	rm -f experiments/gdk/gdk3-modifier-state
+	rm -f experiments/gtk/gtk3-modifier-state
 
 experiment-gdk3-gjs:
 	gjs ./experiments/gdk/gdk3-modifier-state.js
