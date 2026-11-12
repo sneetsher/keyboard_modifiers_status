@@ -1,0 +1,27 @@
+name: Release package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes gnome-shell zip
+
+      - name: Package extension
+        run: make pack
+
+      - name: Upload package to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" keyboard_modifiers_status@sneetsher.shell-extension.zip --clobber
